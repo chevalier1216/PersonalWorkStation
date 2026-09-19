@@ -1,0 +1,37 @@
+import { PGlite } from "@electric-sql/pglite";
+import { readFile } from "node:fs/promises";
+import type { Snapshot } from "../src/domain";
+export const alice = "00000000-0000-4000-8000-000000000001";
+export const bob = "00000000-0000-4000-8000-000000000002";
+export async function database() {
+  const db = new PGlite();
+  await db.exec(`create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key);
+    create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+    grant usage on schema auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;
+    insert into auth.users values ('${alice}'),('${bob}');`);
+  await db.exec(
+    await readFile(
+      new URL("../supabase/migrations/202609190001_board.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  await db.query("insert into public.allowed_users values($1)", [alice]);
+  async function run(
+    action: string,
+    payload: Record<string, unknown> = {},
+    user = alice,
+  ) {
+    return db.transaction(async (tx) => {
+      await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+        user,
+      ]);
+      await tx.exec("set local role authenticated");
+      const result = await tx.query<{ result: Snapshot }>(
+        "select public.board_command($1,$2::jsonb) as result",
+        [action, JSON.stringify(payload)],
+      );
+      return result.rows[0].result;
+    });
+  }
+  return { db, run };
+}

@@ -1,0 +1,27 @@
+import { createClient } from "@supabase/supabase-js";
+import type { Snapshot } from "./domain";
+const url = import.meta.env.VITE_SUPABASE_URL;
+const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+export const supabase =
+  url && key
+    ? createClient(url, key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: "pkce",
+        },
+      })
+    : null;
+export async function command(
+  action: string,
+  payload: Record<string, unknown> = {},
+): Promise<Snapshot> {
+  if (!supabase) throw new Error("尚未設定資料連線");
+  const { data, error } = await supabase.rpc("board_command", {
+    action,
+    payload,
+  });
+  if (error) throw new Error(error.message);
+  return data as Snapshot;
+}
