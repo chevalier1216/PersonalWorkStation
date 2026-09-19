@@ -284,6 +284,45 @@ h1 {
 .task-actions button {
   padding: 3px 9px;
 }
+.card-meta,
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 7px 0;
+}
+.card-meta > span,
+.mini-tag,
+.chip {
+  border: 1px solid #9db1cb55;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 0.66rem;
+  color: #c5cfdd;
+}
+.card-meta .blocked {
+  color: #efbec4;
+  border-color: #d58a9655;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+}
+.chip i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.chip button,
+.checklist button,
+.relations button {
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+}
 .empty {
   font-size: 0.8rem;
   text-align: center;
@@ -308,9 +347,101 @@ dialog {
   border: 1px solid #b2c5e244;
   border-radius: 18px;
   padding: 26px;
-  width: min(540px, 92vw);
+  width: min(920px, 94vw);
   max-height: 90vh;
   box-shadow: 0 20px 80px #1119;
+}
+.task-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.task-detail-grid > .error,
+.full-width,
+.detail-footer {
+  grid-column: 1 / -1;
+}
+.detail-section {
+  border: 1px solid #a6b5cd2e;
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+.detail-section h3 {
+  margin: 0 0 14px;
+  font-size: 0.96rem;
+}
+.field-row,
+.inline-form {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.field-row > label,
+.inline-form > input:not([type="color"]),
+.inline-form > select {
+  flex: 1;
+  min-width: 0;
+}
+.inline-form input[type="color"] {
+  width: 46px;
+  height: 42px;
+  padding: 4px;
+}
+.detail-meta,
+.subtle {
+  color: #aab6c6;
+  font-size: 0.76rem;
+}
+.checklist,
+.relations,
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 14px;
+}
+.checklist li,
+.relations li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid #a6b5cd20;
+}
+.checklist li span,
+.relations li strong {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.checklist input {
+  width: auto;
+}
+.checked {
+  text-decoration: line-through;
+  color: #8f9aaa;
+}
+.relations li > span {
+  color: #aab8ca;
+  font-size: 0.72rem;
+}
+.timeline li {
+  border-left: 2px solid #8da1bd55;
+  padding: 0 0 14px 14px;
+}
+.timeline time {
+  color: #9facbe;
+  font-size: 0.7rem;
+}
+.timeline p {
+  white-space: pre-wrap;
+  margin: 4px 0 0;
+}
+.danger-zone {
+  border-color: #d18b9530;
+}
+.detail-footer {
+  display: flex;
+  justify-content: flex-end;
 }
 dialog::backdrop {
   background: #171c27b8;
@@ -387,5 +518,16 @@ dialog::backdrop {
   }
   .task-actions select {
     min-height: 40px;
+  }
+  .task-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .field-row,
+  .inline-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .task-detail-grid > * {
+    grid-column: 1;
   }
 }

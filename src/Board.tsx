@@ -26,6 +26,7 @@ import {
   type Kind,
   type Priority,
 } from "./domain";
+import { TaskDetails } from "./TaskDetails";
 export type Execute = (
   action: string,
   payload?: Record<string, unknown>,
@@ -46,6 +47,10 @@ function Card({
   columns,
   index,
   count,
+  tags,
+  checklistDone,
+  checklistTotal,
+  blockedBy,
 }: {
   task: Task;
   busy: boolean;
@@ -54,6 +59,10 @@ function Card({
   columns: Column[];
   index: number;
   count: number;
+  tags: Snapshot["tags"];
+  checklistDone: number;
+  checklistTotal: number;
+  blockedBy: string[];
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: task.id,
@@ -88,6 +97,30 @@ function Card({
         {task.title}
       </button>
       {task.description && <p className="description">{task.description}</p>}
+      {(tags.length > 0 || checklistTotal > 0 || blockedBy.length > 0) && (
+        <div className="card-meta">
+          {blockedBy.length > 0 && (
+            <span className="blocked" title={blockedBy.join("、")}>
+              被阻擋 · {blockedBy.length}
+            </span>
+          )}
+          {checklistTotal > 0 && (
+            <span>
+              Checklist {checklistDone}/{checklistTotal}
+            </span>
+          )}
+          {tags.map((tag) => (
+            <span
+              className="mini-tag"
+              key={tag.id}
+              style={{ borderColor: tag.color }}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
+      {task.start_date && <p className="date">開始 {task.start_date}</p>}
       {task.due_at && (
         <p className="date">
           截止 {new Date(task.due_at).toLocaleString("zh-TW")}
@@ -136,14 +169,28 @@ export function Board({
   execute: Execute;
   onSignOut?: () => Promise<void>;
 }) {
-  const [data, setData] = useState<Snapshot>({ columns: [], tasks: [] });
+  const [data, setData] = useState<Snapshot>({
+    columns: [],
+    tasks: [],
+    tags: [],
+    checklist: [],
+    notes: [],
+    relations: [],
+    history: [],
+  });
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [quick, setQuick] = useState("");
-  const [editing, setEditing] = useState<Task | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = data.tasks.find((task) => task.id === editingId) ?? null;
+  const [pendingMove, setPendingMove] = useState<{
+    task: Task;
+    column_id: string;
+    position?: number;
+  } | null>(null);
   const [managing, setManaging] = useState<Column | null>(null);
   const [addColumn, setAddColumn] = useState(false);
   const sensors = useSensors(
@@ -182,6 +229,10 @@ export function Board({
       description: "",
       priority: "Regular",
       due_at: null,
+      start_date: null,
+      estimated_minutes: null,
+      deliverable_type: null,
+      deliverable_value: null,
     });
     if (!parsed.success) {
       setError(parsed.error.issues[0].message);
@@ -193,7 +244,18 @@ export function Board({
     if (!e.over) return;
     const task = data.tasks.find((t) => t.id === e.active.id);
     if (task && task.column_id !== e.over.id)
-      void run("move_task", { id: task.id, column_id: e.over.id });
+      requestMove(task, String(e.over.id));
+  }
+  function requestMove(task: Task, column_id: string, position?: number) {
+    const destination = data.columns.find((column) => column.id === column_id);
+    const hasOpenChecklist = data.checklist.some(
+      (item) => item.task_id === task.id && !item.completed,
+    );
+    if (destination?.kind === "done" && hasOpenChecklist) {
+      setPendingMove({ task, column_id, position });
+      return;
+    }
+    void run("move_task", { id: task.id, column_id, position });
   }
   return (
     <div className="workspace">
@@ -329,16 +391,41 @@ export function Board({
                         key={task.id}
                         task={task}
                         busy={busy}
-                        edit={() => setEditing(task)}
+                        edit={() => setEditingId(task.id)}
                         columns={data.columns}
                         index={index}
                         count={tasks.length}
+                        tags={data.tags.filter(
+                          (tag) => tag.task_id === task.id,
+                        )}
+                        checklistDone={
+                          data.checklist.filter(
+                            (item) =>
+                              item.task_id === task.id && item.completed,
+                          ).length
+                        }
+                        checklistTotal={
+                          data.checklist.filter(
+                            (item) => item.task_id === task.id,
+                          ).length
+                        }
+                        blockedBy={data.relations
+                          .filter(
+                            (relation) =>
+                              relation.task_id === task.id &&
+                              relation.relation_type === "prerequisite",
+                          )
+                          .map((relation) =>
+                            data.tasks.find(
+                              (item) => item.id === relation.related_task_id,
+                            ),
+                          )
+                          .filter((item): item is Task =>
+                            Boolean(item && !item.completed_at),
+                          )
+                          .map((item) => item.title)}
                         move={(column_id, position) =>
-                          void run("move_task", {
-                            id: task.id,
-                            column_id,
-                            position,
-                          })
+                          requestMove(task, column_id, position)
                         }
                       />
                     ))}
@@ -358,19 +445,55 @@ export function Board({
         </p>
       </main>
       {editing && (
-        <TaskEditor
-          remoteError={error}
-          task={editing}
+        <Modal
+          title="任務詳細資料"
           busy={busy}
-          close={() => setEditing(null)}
-          save={async (payload) => {
-            if (await run("edit_task", { id: editing.id, ...payload }))
-              setEditing(null);
-          }}
-          remove={async () => {
-            if (await run("delete_task", { id: editing.id })) setEditing(null);
-          }}
-        />
+          close={() => setEditingId(null)}
+        >
+          <TaskDetails
+            task={editing}
+            data={data}
+            busy={busy}
+            remoteError={error}
+            close={() => setEditingId(null)}
+            run={run}
+            remove={async () => {
+              if (await run("delete_task", { id: editing.id }))
+                setEditingId(null);
+            }}
+          />
+        </Modal>
+      )}
+      {pendingMove && (
+        <Modal
+          title="Checklist 尚未完成"
+          busy={busy}
+          close={() => setPendingMove(null)}
+        >
+          <p>此任務仍有未完成的 Checklist。仍要標記為完成嗎？</p>
+          <div className="dialog-actions">
+            <button disabled={busy} onClick={() => setPendingMove(null)}>
+              取消
+            </button>
+            <button
+              className="primary"
+              disabled={busy}
+              onClick={async () => {
+                const move = pendingMove;
+                if (
+                  await run("move_task", {
+                    id: move.task.id,
+                    column_id: move.column_id,
+                    position: move.position,
+                  })
+                )
+                  setPendingMove(null);
+              }}
+            >
+              仍要完成
+            </button>
+          </div>
+        </Modal>
       )}
       {(managing || addColumn) && (
         <ColumnEditor

@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import { database, alice, bob } from "./database";
 import { taskInput } from "../src/domain";
+import { normalizeSnapshot } from "../src/api";
 describe("PostgreSQL board boundaries", () => {
   let ctx: Awaited<ReturnType<typeof database>>;
   beforeAll(async () => {
@@ -120,5 +121,78 @@ describe("PostgreSQL board boundaries", () => {
     ).toEqual(["Two", "One"]);
     s = await ctx.run("delete_task", { id: two.id });
     expect(s.tasks.some((t) => t.id === two.id)).toBe(false);
+  });
+  it("persists task details, child records, relations, and cascades ownership", async () => {
+    let s = await ctx.run("load");
+    const first = s.tasks[0];
+    s = await ctx.run("create_task", { title: "Related task" });
+    const related = s.tasks.find((task) => task.title === "Related task")!;
+    s = await ctx.run("edit_task", {
+      id: first.id,
+      title: first.title,
+      description: "Detail body",
+      priority: "Urgent",
+      due_at: "2026-09-22T08:00:00.000Z",
+      start_date: "2026-09-20",
+      estimated_minutes: 90,
+      deliverable_type: "PR",
+      deliverable_value: "https://example.invalid/pr/1",
+    });
+    expect(s.tasks.find((task) => task.id === first.id)).toMatchObject({
+      start_date: "2026-09-20",
+      estimated_minutes: 90,
+      deliverable_type: "PR",
+    });
+    s = await ctx.run("add_tag", {
+      task_id: first.id,
+      name: "M1",
+      color: "#7895b2",
+    });
+    s = await ctx.run("add_checklist", {
+      task_id: first.id,
+      title: "Verify",
+      due_date: "2026-09-21",
+    });
+    s = await ctx.run("add_note", {
+      task_id: first.id,
+      content: "Decision retained",
+    });
+    s = await ctx.run("add_relation", {
+      task_id: first.id,
+      related_task_id: related.id,
+      relation_type: "prerequisite",
+    });
+    expect(s.tags).toHaveLength(1);
+    expect(s.checklist[0]).toMatchObject({ title: "Verify", completed: false });
+    expect(s.notes[0].content).toBe("Decision retained");
+    expect(s.relations[0]).toMatchObject({ related_task_id: related.id });
+    s = await ctx.run("toggle_checklist", {
+      id: s.checklist[0].id,
+      completed: true,
+    });
+    expect(s.checklist[0].completed).toBe(true);
+    await expect(
+      ctx.run(
+        "add_tag",
+        { task_id: first.id, name: "leak", color: "#123456" },
+        bob,
+      ),
+    ).rejects.toThrow(/找不到任務/);
+    s = await ctx.run("delete_task", { id: related.id });
+    expect(s.relations).toHaveLength(0);
+  });
+});
+
+describe("snapshot compatibility", () => {
+  it("keeps the v1 hosted snapshot usable before the additive migration", () => {
+    expect(normalizeSnapshot({ columns: [], tasks: [] })).toEqual({
+      columns: [],
+      tasks: [],
+      tags: [],
+      checklist: [],
+      notes: [],
+      relations: [],
+      history: [],
+    });
   });
 });

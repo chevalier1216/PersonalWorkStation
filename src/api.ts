@@ -13,6 +13,17 @@ export const supabase =
         },
       })
     : null;
+export function normalizeSnapshot(snapshot: Partial<Snapshot>): Snapshot {
+  return {
+    columns: snapshot.columns ?? [],
+    tasks: snapshot.tasks ?? [],
+    tags: snapshot.tags ?? [],
+    checklist: snapshot.checklist ?? [],
+    notes: snapshot.notes ?? [],
+    relations: snapshot.relations ?? [],
+    history: snapshot.history ?? [],
+  };
+}
 export async function command(
   action: string,
   payload: Record<string, unknown> = {},
@@ -23,5 +34,5 @@ export async function command(
     payload,
   });
   if (error) throw new Error(error.message);
-  return data as Snapshot;
+  return normalizeSnapshot(data as Partial<Snapshot>);
 }

@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { Board, type Execute } from "../src/Board";
 import type { Snapshot } from "../src/domain";
 import migration from "../supabase/migrations/202609190001_board.sql?raw";
+import detailsMigration from "../supabase/migrations/202609200001_task_details.sql?raw";
 import "../src/style.css";
 const db = new PGlite("idb://m1-browser-tests");
 await db.waitReady;
@@ -18,6 +19,10 @@ if (!exists.rows[0].exists) {
   await db.exec(migration);
   await db.query("insert into allowed_users values($1)", [user]);
 }
+const hasDetails = await db.query<{ exists: boolean }>(
+  "select exists(select 1 from information_schema.columns where table_schema='public' and table_name='tasks' and column_name='start_date')",
+);
+if (!hasDetails.rows[0].exists) await db.exec(detailsMigration);
 const execute: Execute = async (action, payload = {}) => {
   if (new URLSearchParams(location.search).get("fail") === action)
     throw new Error("測試用連線中斷");
