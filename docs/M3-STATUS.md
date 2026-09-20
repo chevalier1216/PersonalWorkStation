@@ -20,6 +20,13 @@
 - `npm run test:e2e`：desktop + mobile 共 14 tests passed。
 - `npm run build`：passed；仍有主 bundle 大於 500 kB 與第三方 zod 註解警告。
 
+## Production migration
+
+- 2026-09-20 已取得明確發布授權，並將 `202609200004_google_calendar.sql` 套用至 Supabase project `wcvaazjhkczdgtudssdl`。
+- Schema readback：`google_calendars`、`google_calendar_events`、`task_calendar_links`、`google_calendar_sync_state` 均存在，4 張表的 RLS 全部啟用，4 條 owner policy 均存在。
+- `authenticated` 可執行 `workspace_command(text,jsonb)`；既有 4 筆 Task 與 3 個 Board 欄位仍可讀取。
+- Production-backed 工作臺已成功載入 Calendar 模組與既有 Task／通知；尚未建立真實 Google Calendar event。
+
 ## 成本
 
 - Google Calendar API 標準使用目前無額外費用。
@@ -29,8 +36,7 @@
 
 ## 尚未完成／未驗證
 
-- `202609200004_google_calendar.sql` 尚未套用 production。
-- Google Cloud project 尚未確認 Calendar API 已啟用。
+- Google Cloud project `project-workstation-509110` 已確認 Calendar API 尚未啟用；啟用頁明示會接受 Google APIs 與 Calendar API 服務條款，等待使用者在最後動作前明確確認。
 - 指定 Google 帳號尚未重新同意 Calendar scope。
 - 尚未以真實 Google Calendar 完成建立事件、relation persistence、failure／Retry 與 production refresh smoke test。
 - 因此 M3 尚未達到 `07-ACCEPTANCE-TESTS.md` 的正式完成定義。
