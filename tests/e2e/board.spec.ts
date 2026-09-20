@@ -1,8 +1,17 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+async function openBoard(page: Page, url = "/PersonalWorkStation/tests/fixture.html") {
+  await page.goto(url);
+  await page.getByRole("button", { name: "任務看板", exact: true }).click();
+  await expect(page.getByLabel("下一件要做的事")).toBeEnabled({ timeout: 30000 });
+}
+async function reopenBoard(page: Page) {
+  await page.reload();
+  await page.getByRole("button", { name: "任務看板", exact: true }).click();
+}
 test("task details persist and unfinished checklist requires completion confirmation", async ({
   page,
 }) => {
-  await page.goto("/PersonalWorkStation/tests/fixture.html");
+  await openBoard(page);
   const quick = page.getByLabel("下一件要做的事");
   await expect(quick).toBeEnabled({ timeout: 30000 });
   await quick.fill("前置驗證");
@@ -57,7 +66,7 @@ test("task details persist and unfinished checklist requires completion confirma
       .getByRole("region", { name: "已完成", exact: true })
       .getByRole("button", { name: "詳細資料驗證", exact: true }),
   ).toBeVisible();
-  await page.reload();
+  await reopenBoard(page);
   await expect(
     page
       .getByRole("region", { name: "已完成", exact: true })
@@ -65,7 +74,7 @@ test("task details persist and unfinished checklist requires completion confirma
   ).toBeVisible({ timeout: 30000 });
 });
 test("failed edit retains form input and persisted task", async ({ page }) => {
-  await page.goto("/PersonalWorkStation/tests/fixture.html?fail=edit_task");
+  await openBoard(page, "/PersonalWorkStation/tests/fixture.html?fail=edit_task");
   await expect(page.getByLabel("下一件要做的事")).toBeEnabled({
     timeout: 30000,
   });
@@ -84,7 +93,7 @@ test("failed edit retains form input and persisted task", async ({ page }) => {
     .getByRole("dialog", { name: "任務詳細資料" })
     .getByLabel("關閉", { exact: true })
     .click();
-  await page.reload();
+  await reopenBoard(page);
   await expect(
     page.getByRole("button", { name: "保留原件", exact: true }),
   ).toBeVisible({ timeout: 30000 });
@@ -95,7 +104,7 @@ test("failed edit retains form input and persisted task", async ({ page }) => {
 test("real PostgreSQL harness: create, move, edit, refresh, manage columns, delete", async ({
   page,
 }) => {
-  await page.goto("/PersonalWorkStation/tests/fixture.html");
+  await openBoard(page);
   const quick = page.getByLabel("下一件要做的事");
   await expect(quick).toBeEnabled({ timeout: 30000 });
   await quick.fill("完成 M1 驗收");
@@ -109,7 +118,7 @@ test("real PostgreSQL harness: create, move, edit, refresh, manage columns, dele
       .getByRole("region", { name: "進行中", exact: true })
       .getByRole("button", { name: "完成 M1 驗收", exact: true }),
   ).toBeVisible();
-  await page.reload();
+  await reopenBoard(page);
   await expect(
     page
       .getByRole("region", { name: "進行中", exact: true })
@@ -142,7 +151,7 @@ test("real PostgreSQL harness: create, move, edit, refresh, manage columns, dele
   await expect(
     page.getByRole("region", { name: "進行中", exact: true }),
   ).toHaveCount(0);
-  await page.reload();
+  await reopenBoard(page);
   const replacement = page.getByRole("region", { name: "待確認", exact: true });
   await expect(
     replacement.getByRole("button", { name: "完成 M1 驗收", exact: true }),
@@ -157,7 +166,7 @@ test("real PostgreSQL harness: create, move, edit, refresh, manage columns, dele
   ).toHaveCount(0);
 });
 test("pointer drag or mobile movement controls", async ({ page }, info) => {
-  await page.goto("/PersonalWorkStation/tests/fixture.html");
+  await openBoard(page);
   await expect(page.getByLabel("下一件要做的事")).toBeEnabled({
     timeout: 30000,
   });

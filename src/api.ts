@@ -22,6 +22,13 @@ export function normalizeSnapshot(snapshot: Partial<Snapshot>): Snapshot {
     notes: snapshot.notes ?? [],
     relations: snapshot.relations ?? [],
     history: snapshot.history ?? [],
+    notifications: snapshot.notifications ?? [],
+    preferences: snapshot.preferences ?? {
+      module_order: ["tasks", "notifications", "holidays"],
+      hidden_modules: [],
+      updated_at: "",
+    },
+    calendar_days: snapshot.calendar_days ?? [],
   };
 }
 export async function command(
@@ -29,7 +36,7 @@ export async function command(
   payload: Record<string, unknown> = {},
 ): Promise<Snapshot> {
   if (!supabase) throw new Error("尚未設定資料連線");
-  const { data, error } = await supabase.rpc("board_command", {
+  const { data, error } = await supabase.rpc("workspace_command", {
     action,
     payload,
   });

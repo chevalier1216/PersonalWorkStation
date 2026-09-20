@@ -2,9 +2,12 @@ import { useState, type FormEvent } from "react";
 import {
   priorityLabels,
   rawDoingMinutes,
+  recurrenceLabels,
   relationLabels,
   taskInput,
   type Priority,
+  type RecurrenceType,
+  type RecurrenceUnit,
   type RelationType,
   type Snapshot,
   type Task,
@@ -54,6 +57,15 @@ export function TaskDetails({
   const [deliverableValue, setDeliverableValue] = useState(
     task.deliverable_value ?? "",
   );
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType | "">(
+    task.recurrence_type ?? "",
+  );
+  const [recurrenceInterval, setRecurrenceInterval] = useState(
+    task.recurrence_interval?.toString() ?? "1",
+  );
+  const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>(
+    task.recurrence_unit ?? "day",
+  );
   const [localError, setLocalError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [tagName, setTagName] = useState("");
@@ -83,6 +95,9 @@ export function TaskDetails({
       estimated_minutes: estimate ? Number(estimate) : null,
       deliverable_type: deliverableType || null,
       deliverable_value: deliverableValue || null,
+      recurrence_type: recurrenceType || null,
+      recurrence_interval: recurrenceType ? Number(recurrenceInterval || 1) : null,
+      recurrence_unit: recurrenceType === "custom" ? recurrenceUnit : null,
     });
     if (!parsed.success) {
       setLocalError(parsed.error.issues[0].message);
@@ -141,6 +156,52 @@ export function TaskDetails({
               onChange={(e) => setStartDate(e.target.value)}
             />
           </label>
+        </div>
+        <div className="field-row">
+          <label>
+            循環任務
+            <select
+              aria-label="循環任務"
+              value={recurrenceType}
+              onChange={(e) =>
+                setRecurrenceType(e.target.value as RecurrenceType | "")
+              }
+            >
+              <option value="">不循環</option>
+              {Object.entries(recurrenceLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {recurrenceType && (
+            <label>
+              間隔
+              <input
+                aria-label="循環間隔"
+                type="number"
+                min="1"
+                max="365"
+                value={recurrenceInterval}
+                onChange={(e) => setRecurrenceInterval(e.target.value)}
+              />
+            </label>
+          )}
+          {recurrenceType === "custom" && (
+            <label>
+              自訂單位
+              <select
+                aria-label="自訂循環單位"
+                value={recurrenceUnit}
+                onChange={(e) => setRecurrenceUnit(e.target.value as RecurrenceUnit)}
+              >
+                <option value="day">天</option>
+                <option value="week">週</option>
+                <option value="month">月</option>
+              </select>
+            </label>
+          )}
         </div>
         <div className="field-row">
           <label>

@@ -1,6 +1,8 @@
 import { z } from "zod";
 export type Kind = "todo" | "doing" | "done";
 export type Priority = "Regular" | "High" | "Urgent";
+export type RecurrenceType = "daily" | "weekly" | "monthly" | "custom";
+export type RecurrenceUnit = "day" | "week" | "month";
 export interface Column {
   id: string;
   title: string;
@@ -18,6 +20,10 @@ export interface Task {
   estimated_minutes: number | null;
   deliverable_type: string | null;
   deliverable_value: string | null;
+  recurrence_type: RecurrenceType | null;
+  recurrence_interval: number | null;
+  recurrence_unit: RecurrenceUnit | null;
+  recurrence_source_id: string | null;
   position: number;
   completed_at: string | null;
   created_at: string;
@@ -56,6 +62,36 @@ export interface StatusHistory {
   to_kind: Kind;
   changed_at: string;
 }
+export interface Notification {
+  id: string;
+  type:
+    | "recurring_created"
+    | "task_unblocked"
+    | "unscheduled_reminder"
+    | "calendar_failure"
+    | "archive_failure"
+    | "holiday_reminder"
+    | "system";
+  title: string;
+  body: string;
+  task_id: string | null;
+  dedupe_key: string;
+  read_at: string | null;
+  created_at: string;
+}
+export interface TodayPreferences {
+  module_order: Array<"tasks" | "calendar" | "ai_chat" | "notifications" | "holidays">;
+  hidden_modules: Array<"tasks" | "calendar" | "ai_chat" | "notifications" | "holidays">;
+  updated_at: string;
+}
+export interface CalendarDay {
+  region: "CN" | "TW";
+  day: string;
+  day_type: "holiday" | "workday";
+  name: string;
+  source_url: string;
+  fetched_at: string;
+}
 export interface Snapshot {
   columns: Column[];
   tasks: Task[];
@@ -64,6 +100,9 @@ export interface Snapshot {
   notes: TaskNote[];
   relations: TaskRelation[];
   history: StatusHistory[];
+  notifications: Notification[];
+  preferences: TodayPreferences;
+  calendar_days: CalendarDay[];
 }
 export const taskInput = z.object({
   title: z.string().trim().min(1, "請輸入任務標題").max(300, "標題最多 300 字"),
@@ -74,6 +113,12 @@ export const taskInput = z.object({
   estimated_minutes: z.number().int().min(1).max(525600).nullable(),
   deliverable_type: z.string().trim().max(40).nullable(),
   deliverable_value: z.string().trim().max(5000).nullable(),
+  recurrence_type: z
+    .enum(["daily", "weekly", "monthly", "custom"])
+    .nullable()
+    .optional(),
+  recurrence_interval: z.number().int().min(1).max(365).nullable().optional(),
+  recurrence_unit: z.enum(["day", "week", "month"]).nullable().optional(),
 });
 export const priorityLabels: Record<Priority, string> = {
   Regular: "一般",
@@ -95,6 +140,18 @@ export const relationLabels: Record<RelationType, string> = {
   prerequisite: "前置任務",
   follow_up: "後續任務",
   related: "相關任務",
+};
+export const recurrenceLabels: Record<RecurrenceType, string> = {
+  daily: "每天",
+  weekly: "每週",
+  monthly: "每月",
+  custom: "自訂",
+};
+
+export const emptyPreferences: TodayPreferences = {
+  module_order: ["tasks", "notifications", "holidays"],
+  hidden_modules: [],
+  updated_at: "",
 };
 
 export function rawDoingMinutes(

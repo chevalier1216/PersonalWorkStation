@@ -27,6 +27,7 @@ import {
   type Priority,
 } from "./domain";
 import { TaskDetails } from "./TaskDetails";
+import { Today } from "./Today";
 export type Execute = (
   action: string,
   payload?: Record<string, unknown>,
@@ -177,6 +178,13 @@ export function Board({
     notes: [],
     relations: [],
     history: [],
+    notifications: [],
+    preferences: {
+      module_order: ["tasks", "notifications", "holidays"],
+      hidden_modules: [],
+      updated_at: "",
+    },
+    calendar_days: [],
   });
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
@@ -193,6 +201,7 @@ export function Board({
   } | null>(null);
   const [managing, setManaging] = useState<Column | null>(null);
   const [addColumn, setAddColumn] = useState(false);
+  const [view, setView] = useState<"today" | "board">("today");
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor),
@@ -275,6 +284,43 @@ export function Board({
           )}
         </div>
       </header>
+      <nav className="primary-nav" aria-label="主要導覽">
+        <button
+          aria-current={view === "today" ? "page" : undefined}
+          onClick={() => setView("today")}
+        >
+          今日
+        </button>
+        <button
+          aria-current={view === "board" ? "page" : undefined}
+          onClick={() => setView("board")}
+        >
+          任務看板
+        </button>
+      </nav>
+      {view === "today" ? (
+        <main>
+          {error && (
+            <div className="error" role="alert">
+              {error}
+            </div>
+          )}
+          <div
+            className="status"
+            role="status"
+            aria-label="儲存狀態"
+            aria-live="polite"
+          >
+            {busy ? "正在儲存或載入…" : notice}
+          </div>
+          <Today
+            data={data}
+            busy={busy}
+            openTask={setEditingId}
+            run={run}
+          />
+        </main>
+      ) : (
       <main>
         <div className="heading">
           <div>
@@ -444,6 +490,7 @@ export function Board({
           拖曳卡片可跨欄移動；也可使用卡片下方選單與排序按鈕。
         </p>
       </main>
+      )}
       {editing && (
         <Modal
           title="任務詳細資料"

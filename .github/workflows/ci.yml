@@ -1,4 +1,4 @@
-name: M1 verification
+name: V1 verification
 on:
   push:
   pull_request:

@@ -1,0 +1,23 @@
+name: Official holiday sync
+on:
+  schedule:
+    - cron: "17 2 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh official calendars
+        env:
+          HOLIDAY_SYNC_SECRET: ${{ secrets.HOLIDAY_SYNC_SECRET }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$HOLIDAY_SYNC_SECRET"
+          test -n "$SUPABASE_PUBLISHABLE_KEY"
+          curl --fail-with-body --retry 2 \
+            -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            -H "x-holiday-sync-secret: $HOLIDAY_SYNC_SECRET" \
+            "https://wcvaazjhkczdgtudssdl.supabase.co/functions/v1/refresh-holidays"

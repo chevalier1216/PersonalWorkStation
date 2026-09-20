@@ -78,6 +78,26 @@ header {
   background: #30364080;
   backdrop-filter: blur(20px);
 }
+.primary-nav {
+  display: flex;
+  gap: 8px;
+  padding: 10px 4vw;
+  border-bottom: 1px solid #b9c6df18;
+  background: #292f3888;
+  backdrop-filter: blur(16px);
+  position: sticky;
+  top: 0;
+  z-index: 8;
+}
+.primary-nav button {
+  background: transparent;
+  border-color: transparent;
+}
+.primary-nav button[aria-current="page"] {
+  background: #9ab1d125;
+  border-color: #a6bad644;
+  color: #dce7f5;
+}
 .brand {
   text-decoration: none;
   color: #e2e5eb;
@@ -131,6 +151,115 @@ h1 {
   min-height: 30px;
   font-size: 0.78rem;
   color: #b7c9b6;
+}
+.today-heading {
+  margin-bottom: 24px;
+}
+.today-modules {
+  display: grid;
+  gap: 18px;
+}
+.today-module,
+.layout-editor {
+  background: linear-gradient(135deg, #a3b5d515, #a3b5d508);
+  border: 1px solid #adbed326;
+  border-radius: 18px;
+  padding: 20px;
+  backdrop-filter: blur(12px);
+}
+.module-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.module-heading h2,
+.layout-editor h2 {
+  margin: 0;
+  font-size: 1.08rem;
+}
+.module-heading h2 span {
+  color: #aab8ca;
+  font-size: 0.75rem;
+  margin-left: 8px;
+}
+.today-group {
+  border-top: 1px solid #a6b5cd20;
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.today-group h3 {
+  color: #cdd7e5;
+  font-size: 0.86rem;
+  margin: 0 0 8px;
+}
+.today-group h3 span {
+  color: #8f9fb3;
+  margin-left: 5px;
+}
+.today-group ul,
+.notification-list,
+.holiday-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.today-group li button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  background: #38414d80;
+  margin-bottom: 7px;
+}
+.today-group li time {
+  color: #aab6c6;
+  font-size: 0.72rem;
+}
+.future-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(180px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+}
+.notification-list li {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-top: 1px solid #a6b5cd20;
+  padding: 12px 0;
+}
+.notification-list li.read {
+  opacity: 0.62;
+}
+.notification-list p {
+  margin: 3px 0;
+  color: #bec7d4;
+}
+.notification-list time {
+  color: #93a2b5;
+  font-size: 0.7rem;
+}
+.holiday-list li {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #a6b5cd20;
+  padding: 10px 0;
+}
+.layout-editor {
+  margin-bottom: 18px;
+}
+.layout-editor > div {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid #a6b5cd20;
 }
 .quick-add {
   margin: 12px 0 30px;
@@ -492,6 +621,10 @@ dialog::backdrop {
   main {
     padding: 24px 18px;
   }
+  .primary-nav {
+    padding: 8px 18px;
+    overflow-x: auto;
+  }
   .heading {
     align-items: flex-start;
     flex-direction: column;
@@ -529,5 +662,14 @@ dialog::backdrop {
   }
   .task-detail-grid > * {
     grid-column: 1;
+  }
+  .future-grid {
+    grid-template-columns: repeat(5, minmax(240px, 1fr));
+  }
+  .today-group li button {
+    grid-template-columns: 1fr auto;
+  }
+  .today-group li time {
+    grid-column: 1 / -1;
   }
 }
