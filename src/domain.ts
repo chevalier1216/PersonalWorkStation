@@ -92,6 +92,44 @@ export interface CalendarDay {
   source_url: string;
   fetched_at: string;
 }
+export interface GoogleCalendar {
+  calendar_id: string;
+  summary: string;
+  color: string;
+  time_zone: string;
+  is_primary: boolean;
+  selected: boolean;
+  updated_at: string;
+}
+export interface GoogleCalendarEvent {
+  calendar_id: string;
+  event_id: string;
+  title: string;
+  start_at: string | null;
+  end_at: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  all_day: boolean;
+  html_link: string;
+  status: "confirmed" | "tentative";
+  updated_at: string;
+}
+export interface TaskCalendarLink {
+  id: string;
+  task_id: string;
+  calendar_id: string;
+  event_id: string | null;
+  html_link: string;
+  sync_status: "synced" | "failed";
+  sync_error: string;
+  last_synced_at: string | null;
+  created_at: string;
+}
+export interface GoogleCalendarSyncState {
+  last_attempt_at: string | null;
+  last_success_at: string | null;
+  last_error: string;
+}
 export interface Snapshot {
   columns: Column[];
   tasks: Task[];
@@ -103,6 +141,10 @@ export interface Snapshot {
   notifications: Notification[];
   preferences: TodayPreferences;
   calendar_days: CalendarDay[];
+  google_calendars: GoogleCalendar[];
+  google_events: GoogleCalendarEvent[];
+  task_calendar_links: TaskCalendarLink[];
+  google_calendar_sync: GoogleCalendarSyncState;
 }
 export const taskInput = z.object({
   title: z.string().trim().min(1, "請輸入任務標題").max(300, "標題最多 300 字"),
@@ -149,9 +191,15 @@ export const recurrenceLabels: Record<RecurrenceType, string> = {
 };
 
 export const emptyPreferences: TodayPreferences = {
-  module_order: ["tasks", "notifications", "holidays"],
+  module_order: ["tasks", "calendar", "notifications", "holidays"],
   hidden_modules: [],
   updated_at: "",
+};
+
+export const emptyGoogleCalendarSync: GoogleCalendarSyncState = {
+  last_attempt_at: null,
+  last_success_at: null,
+  last_error: "",
 };
 
 export function rawDoingMinutes(

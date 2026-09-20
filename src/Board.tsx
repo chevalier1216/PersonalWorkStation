@@ -32,6 +32,12 @@ export type Execute = (
   action: string,
   payload?: Record<string, unknown>,
 ) => Promise<Snapshot>;
+export type CalendarOperations = {
+  tokenAvailable: boolean;
+  connect: () => Promise<void>;
+  sync: (snapshot: Snapshot) => Promise<Snapshot>;
+  create: (task: Task, calendarId: string) => Promise<Snapshot>;
+};
 function Drop({ id, children }: { id: string; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
@@ -166,9 +172,11 @@ function Card({
 export function Board({
   execute,
   onSignOut,
+  calendar,
 }: {
   execute: Execute;
   onSignOut?: () => Promise<void>;
+  calendar?: CalendarOperations;
 }) {
   const [data, setData] = useState<Snapshot>({
     columns: [],
@@ -180,11 +188,19 @@ export function Board({
     history: [],
     notifications: [],
     preferences: {
-      module_order: ["tasks", "notifications", "holidays"],
+      module_order: ["tasks", "calendar", "notifications", "holidays"],
       hidden_modules: [],
       updated_at: "",
     },
     calendar_days: [],
+    google_calendars: [],
+    google_events: [],
+    task_calendar_links: [],
+    google_calendar_sync: {
+      last_attempt_at: null,
+      last_success_at: null,
+      last_error: "",
+    },
   });
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
@@ -222,6 +238,25 @@ export function Board({
         (e instanceof Error ? e.message : "操作失敗") +
           "。資料尚未確認儲存，請重新整理確認後再試。",
       );
+      return false;
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+  async function runCalendar(operation: () => Promise<Snapshot>) {
+    if (lock.current) return false;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      setData(await operation());
+      setLoaded(true);
+      setNotice("Calendar 狀態已更新");
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Google Calendar 操作失敗");
       return false;
     } finally {
       lock.current = false;
@@ -318,6 +353,10 @@ export function Board({
             busy={busy}
             openTask={setEditingId}
             run={run}
+            calendar={calendar}
+            syncCalendar={() =>
+              calendar ? runCalendar(() => calendar.sync(data)) : Promise.resolve(false)
+            }
           />
         </main>
       ) : (
@@ -504,6 +543,12 @@ export function Board({
             remoteError={error}
             close={() => setEditingId(null)}
             run={run}
+            calendar={calendar}
+            createCalendarEvent={(task, calendarId) =>
+              calendar
+                ? runCalendar(() => calendar.create(task, calendarId))
+                : Promise.resolve(false)
+            }
             remove={async () => {
               if (await run("delete_task", { id: editing.id }))
                 setEditingId(null);

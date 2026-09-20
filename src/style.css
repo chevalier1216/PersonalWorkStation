@@ -158,6 +158,12 @@ h1 {
 .today-modules {
   display: grid;
   gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.today-modules > div,
+.today-module {
+  min-width: 0;
+  max-width: 100%;
 }
 .today-module,
 .layout-editor {
@@ -249,6 +255,92 @@ h1 {
   justify-content: space-between;
   border-top: 1px solid #a6b5cd20;
   padding: 10px 0;
+}
+.calendar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.calendar-picker {
+  border: 1px solid #a6b5cd2e;
+  border-radius: 10px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+}
+.calendar-picker label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 7px 0;
+}
+.calendar-picker input {
+  width: auto;
+  margin: 0;
+}
+.calendar-picker i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.calendar-agenda {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(175px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+}
+.agenda-day {
+  border-top: 1px solid #a6b5cd20;
+  padding-top: 10px;
+}
+.agenda-day h3 {
+  font-size: 0.82rem;
+  margin: 0 0 8px;
+}
+.agenda-day ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.agenda-day li {
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: 6px;
+  align-items: start;
+  padding: 7px 0;
+  border-bottom: 1px solid #a6b5cd16;
+}
+.agenda-day time {
+  color: #9facbe;
+  font-size: 0.67rem;
+  padding-top: 5px;
+}
+.agenda-day button,
+.agenda-day a,
+.agenda-day p {
+  background: transparent;
+  border: 0;
+  color: #d8e0ec;
+  font-size: 0.75rem;
+  margin: 0;
+  padding: 3px;
+  text-align: left;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.agenda-day span {
+  display: block;
+  color: #90a4bf;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+}
+.calendar-link-state a {
+  color: #b9d3f4;
+}
+.calendar-link-state.success {
+  color: #b8d7bd;
 }
 .layout-editor {
   margin-bottom: 18px;
@@ -665,6 +757,16 @@ dialog::backdrop {
   }
   .future-grid {
     grid-template-columns: repeat(5, minmax(240px, 1fr));
+  }
+  .calendar-agenda {
+    grid-template-columns: repeat(6, minmax(230px, 1fr));
+  }
+  .module-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .calendar-actions {
+    justify-content: flex-start;
   }
   .today-group li button {
     grid-template-columns: 1fr auto;

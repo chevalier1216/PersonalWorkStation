@@ -12,6 +12,7 @@ import {
   type Snapshot,
   type Task,
 } from "./domain";
+import type { CalendarOperations } from "./Board";
 
 type Run = (
   action: string,
@@ -34,6 +35,8 @@ export function TaskDetails({
   close,
   run,
   remove,
+  calendar,
+  createCalendarEvent,
 }: {
   task: Task;
   data: Snapshot;
@@ -42,6 +45,8 @@ export function TaskDetails({
   close: () => void;
   run: Run;
   remove: () => Promise<void>;
+  calendar?: CalendarOperations;
+  createCalendarEvent: (task: Task, calendarId: string) => Promise<boolean>;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
@@ -76,6 +81,13 @@ export function TaskDetails({
   const [relationType, setRelationType] =
     useState<RelationType>("prerequisite");
   const [relatedTask, setRelatedTask] = useState("");
+  const calendarLink = data.task_calendar_links.find(
+    (item) => item.task_id === task.id,
+  );
+  const selectedCalendars = data.google_calendars.filter((item) => item.selected);
+  const [calendarId, setCalendarId] = useState(
+    calendarLink?.calendar_id ?? selectedCalendars[0]?.calendar_id ?? "",
+  );
   const tags = data.tags.filter((item) => item.task_id === task.id);
   const checklist = data.checklist.filter((item) => item.task_id === task.id);
   const notes = data.notes.filter((item) => item.task_id === task.id);
@@ -433,6 +445,70 @@ export function TaskDetails({
           </select>
           <button disabled={busy || !relatedTask}>新增關聯</button>
         </form>
+      </section>
+
+      <section className="detail-section full-width">
+        <h3>Google Calendar</h3>
+        {calendarLink?.sync_status === "synced" ? (
+          <p className="calendar-link-state success">
+            已關聯「
+            {data.google_calendars.find(
+              (item) => item.calendar_id === calendarLink.calendar_id,
+            )?.summary ?? calendarLink.calendar_id}
+            」
+            {calendarLink.html_link && (
+              <> · <a href={calendarLink.html_link} target="_blank" rel="noreferrer">開啟事件</a></>
+            )}
+          </p>
+        ) : calendarLink ? (
+          <p className="calendar-link-state error" role="alert">
+            同步失敗：{calendarLink.sync_error}
+          </p>
+        ) : (
+          <p className="subtle">
+            有截止時間會建立 timed event；只有開始日期會建立 all-day event。
+          </p>
+        )}
+        {!calendar?.tokenAvailable ? (
+          <button
+            type="button"
+            disabled={busy || !calendar}
+            onClick={() =>
+              calendar?.connect().catch((error) =>
+                setLocalError(error instanceof Error ? error.message : String(error)),
+              )
+            }
+          >
+            連結 Google Calendar
+          </button>
+        ) : selectedCalendars.length ? (
+          <div className="inline-form">
+            <select
+              aria-label="Task Calendar"
+              value={calendarId}
+              onChange={(event) => setCalendarId(event.target.value)}
+            >
+              {selectedCalendars.map((item) => (
+                <option key={item.calendar_id} value={item.calendar_id}>
+                  {item.summary}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={busy || !calendarId || (!task.due_at && !task.start_date)}
+              onClick={() => void createCalendarEvent(task, calendarId)}
+            >
+              {calendarLink?.sync_status === "failed"
+                ? "重試建立事件"
+                : calendarLink?.sync_status === "synced"
+                  ? "確認事件關聯"
+                  : "建立 Calendar event"}
+            </button>
+          </div>
+        ) : (
+          <p className="subtle">請先在 Today 同步並選擇要顯示的 Calendar。</p>
+        )}
       </section>
 
       <section className="detail-section full-width">

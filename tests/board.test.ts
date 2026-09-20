@@ -307,6 +307,78 @@ describe("PostgreSQL board boundaries", () => {
     const snapshot = await ctx.run("load");
     expect(snapshot.notifications.some((item) => item.type === "calendar_failure")).toBe(true);
   });
+  it("persists Google Calendar selection, cached events, task links and retry state", async () => {
+    let snapshot = await ctx.run("calendar_sync_success", {
+      calendars: [
+        {
+          id: "primary@example.test",
+          summary: "個人行事曆",
+          color: "#7895b2",
+          time_zone: "Asia/Taipei",
+          is_primary: true,
+          selected: true,
+        },
+        {
+          id: "work@example.test",
+          summary: "工作",
+          color: "#d0a06f",
+          time_zone: "Asia/Taipei",
+          is_primary: false,
+          selected: false,
+        },
+      ],
+      events: [
+        {
+          calendar_id: "primary@example.test",
+          event_id: "event-1",
+          title: "M3 review",
+          start_at: "2026-09-21T02:00:00Z",
+          end_at: "2026-09-21T02:30:00Z",
+          start_date: null,
+          end_date: null,
+          all_day: false,
+          html_link: "https://calendar.google.com/event?eid=1",
+          status: "confirmed",
+        },
+      ],
+    });
+    expect(snapshot.google_calendars).toHaveLength(2);
+    expect(snapshot.google_events[0]).toMatchObject({ title: "M3 review", all_day: false });
+    expect(snapshot.google_calendar_sync.last_success_at).toBeTruthy();
+    snapshot = await ctx.run("calendar_set_selections", {
+      calendar_ids: ["work@example.test"],
+    });
+    expect(snapshot.google_calendars.find((item) => item.calendar_id === "work@example.test")?.selected).toBe(true);
+    snapshot = await ctx.run("create_task", {
+      title: "Create Google event",
+      start_date: "2026-09-22",
+    });
+    const task = snapshot.tasks.find((item) => item.title === "Create Google event")!;
+    snapshot = await ctx.run("calendar_link_failure", {
+      task_id: task.id,
+      calendar_id: "work@example.test",
+      message: "temporary Google error",
+    });
+    expect(snapshot.task_calendar_links.find((item) => item.task_id === task.id)).toMatchObject({
+      sync_status: "failed",
+      sync_error: "temporary Google error",
+    });
+    expect(snapshot.notifications.some((item) => item.task_id === task.id && item.type === "calendar_failure")).toBe(true);
+    snapshot = await ctx.run("calendar_link_success", {
+      task_id: task.id,
+      calendar_id: "work@example.test",
+      event_id: "event-task",
+      html_link: "https://calendar.google.com/event?eid=task",
+    });
+    expect(snapshot.task_calendar_links.find((item) => item.task_id === task.id)).toMatchObject({
+      event_id: "event-task",
+      sync_status: "synced",
+      sync_error: "",
+    });
+    snapshot = await ctx.run("calendar_sync_failure", { message: "quota retry" });
+    expect(snapshot.google_events).toHaveLength(1);
+    expect(snapshot.google_calendar_sync.last_error).toBe("quota retry");
+  });
 });
 
 describe("snapshot compatibility", () => {
@@ -321,11 +393,19 @@ describe("snapshot compatibility", () => {
       history: [],
       notifications: [],
       preferences: {
-        module_order: ["tasks", "notifications", "holidays"],
+        module_order: ["tasks", "calendar", "notifications", "holidays"],
         hidden_modules: [],
         updated_at: "",
       },
       calendar_days: [],
+      google_calendars: [],
+      google_events: [],
+      task_calendar_links: [],
+      google_calendar_sync: {
+        last_attempt_at: null,
+        last_success_at: null,
+        last_error: "",
+      },
     });
   });
 });

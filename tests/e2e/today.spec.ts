@@ -33,7 +33,12 @@ test("Today is the home page and recurring completion creates a task and notific
     }),
   ).toBeVisible();
   await page.getByRole("button", { name: "編輯版面" }).click();
-  await page.getByRole("button", { name: "隱藏", exact: true }).last().click();
+  await page
+    .getByRole("region", { name: "Today 版面設定" })
+    .getByText("假日提醒", { exact: true })
+    .locator("..")
+    .getByRole("button", { name: "隱藏", exact: true })
+    .click();
   await expect(page.getByRole("region", { name: "假日提醒" })).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole("heading", { name: "今天", exact: true })).toBeVisible({

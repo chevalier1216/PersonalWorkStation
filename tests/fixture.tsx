@@ -7,8 +7,9 @@ import migration from "../supabase/migrations/202609190001_board.sql?raw";
 import detailsMigration from "../supabase/migrations/202609200001_task_details.sql?raw";
 import todayMigration from "../supabase/migrations/202609200002_today_recurring.sql?raw";
 import m2ConstraintsMigration from "../supabase/migrations/202609200003_m2_constraints.sql?raw";
+import calendarMigration from "../supabase/migrations/202609200004_google_calendar.sql?raw";
 import "../src/style.css";
-const db = new PGlite("idb://m2-browser-tests-v2");
+const db = new PGlite("idb://m3-browser-tests-v1");
 await db.waitReady;
 const exists = await db.query<{ exists: boolean }>(
   "select exists(select 1 from pg_tables where schemaname='public' and tablename='allowed_users')",
@@ -33,6 +34,10 @@ const hasM2Constraints = await db.query<{ exists: boolean }>(
   "select exists(select 1 from pg_constraint where conname='tasks_recurrence_source_fkey')",
 );
 if (!hasM2Constraints.rows[0].exists) await db.exec(m2ConstraintsMigration);
+const hasCalendar = await db.query<{ exists: boolean }>(
+  "select exists(select 1 from pg_tables where schemaname='public' and tablename='google_calendars')",
+);
+if (!hasCalendar.rows[0].exists) await db.exec(calendarMigration);
 const execute: Execute = async (action, payload = {}) => {
   if (new URLSearchParams(location.search).get("fail") === action)
     throw new Error("測試用連線中斷");
@@ -51,5 +56,63 @@ const execute: Execute = async (action, payload = {}) => {
   return snapshot;
 };
 createRoot(document.getElementById("root")!).render(
-  <Board execute={execute} />,
+  <Board
+    execute={execute}
+    calendar={{
+      tokenAvailable: true,
+      connect: async () => undefined,
+      sync: async () => {
+        const today = new Date();
+        today.setHours(10, 0, 0, 0);
+        const end = new Date(today.getTime() + 30 * 60000);
+        return execute("calendar_sync_success", {
+          calendars: [
+            {
+              id: "primary@test",
+              summary: "個人行事曆",
+              color: "#6f9ed6",
+              time_zone: "Asia/Taipei",
+              is_primary: true,
+              selected: true,
+            },
+            {
+              id: "work@test",
+              summary: "工作",
+              color: "#d69a6f",
+              time_zone: "Asia/Taipei",
+              is_primary: false,
+              selected: false,
+            },
+          ],
+          events: [
+            {
+              calendar_id: "primary@test",
+              event_id: "fixture-event",
+              title: "M3 行事曆事件",
+              start_at: today.toISOString(),
+              end_at: end.toISOString(),
+              start_date: null,
+              end_date: null,
+              all_day: false,
+              html_link: "https://calendar.google.com/calendar/event?eid=fixture",
+              status: "confirmed",
+            },
+          ],
+        });
+      },
+      create: async (task, calendarId) =>
+        new URLSearchParams(location.search).get("calendarFail") === "1"
+          ? execute("calendar_link_failure", {
+              task_id: task.id,
+              calendar_id: calendarId,
+              message: "測試用 Google API 中斷",
+            })
+          : execute("calendar_link_success", {
+              task_id: task.id,
+              calendar_id: calendarId,
+              event_id: `event-${task.id}`,
+              html_link: "https://calendar.google.com/calendar/event?eid=task",
+            }),
+    }}
+  />,
 );

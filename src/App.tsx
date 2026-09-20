@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase, command } from "./api";
+import {
+  supabase,
+  command,
+  createTaskCalendarEvent,
+  syncGoogleCalendar,
+} from "./api";
 import { Board } from "./Board";
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -53,6 +58,8 @@ export function App() {
               provider: "google",
               options: {
                 redirectTo: window.location.origin + import.meta.env.BASE_URL,
+                scopes: "openid email profile https://www.googleapis.com/auth/calendar",
+                queryParams: { prompt: "consent" },
               },
             });
             if (error) setError(error.message);
@@ -66,6 +73,23 @@ export function App() {
     <Board
       key={session.user.id}
       execute={command}
+      calendar={{
+        tokenAvailable: Boolean(session.provider_token),
+        connect: async () => {
+          const { error } = await supabase!.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo: window.location.origin + import.meta.env.BASE_URL,
+              scopes: "openid email profile https://www.googleapis.com/auth/calendar",
+              queryParams: { prompt: "consent" },
+            },
+          });
+          if (error) throw error;
+        },
+        sync: (snapshot) => syncGoogleCalendar(session.provider_token!, snapshot),
+        create: (task, calendarId) =>
+          createTaskCalendarEvent(session.provider_token!, task, calendarId),
+      }}
       onSignOut={async () => {
         const { error } = await supabase!.auth.signOut();
         if (error) throw error;
