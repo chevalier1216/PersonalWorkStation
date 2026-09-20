@@ -1,6 +1,6 @@
 # M3 Google Calendar Status
 
-日期：2026-09-20
+日期：2026-09-21
 
 ## 已實作
 
@@ -36,7 +36,9 @@
 
 ## 尚未完成／未驗證
 
-- Google Cloud project `project-workstation-509110` 已確認 Calendar API 尚未啟用；啟用頁明示會接受 Google APIs 與 Calendar API 服務條款，等待使用者在最後動作前明確確認。
-- 指定 Google 帳號尚未重新同意 Calendar scope。
+- Google Calendar OAuth 真實授權目前被 Google 測試階段限制阻擋：`wcvaazjhkczdgtudssdl.supabase.co` 尚未完成 Google 驗證，只有開發人員核准的測試使用者可存取。
+- 【需要使用者本人操作】在 Google Cloud Console 的 OAuth consent / Audience（Testing）把實際登入的 Google 帳號加入 Test users，必要時重新同意 Calendar scope，再回工作臺重試連結。
+- Calendar 真實授權與 production smoke test 暫時保留；此阻擋不得卡住其他可繼續工作，也不得為解除阻擋自行啟用可能收費資源或繞過 Cost Guardrail。
+- Google Cloud project `project-workstation-509110` 的 Calendar API 啟用狀態仍須在重新授權前確認；若啟用動作涉及新的條款、計費或可能費用，依 Cost Guardrail 等待使用者明確授權。
 - 尚未以真實 Google Calendar 完成建立事件、relation persistence、failure／Retry 與 production refresh smoke test。
 - 因此 M3 尚未達到 `07-ACCEPTANCE-TESTS.md` 的正式完成定義。
