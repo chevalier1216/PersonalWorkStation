@@ -40,7 +40,7 @@ npm run build
 
 - `npm test` 使用 PGlite 的 PostgreSQL 引擎執行實際 migration、RLS、RPC、狀態歷史與回復測試。
 - E2E 使用 `tests/fixture.html` 及同一 migration 的 PGlite 測試資料庫，驗證 UI 與重整保存；測試入口不會打包到正式產物。
-- 上述測試不代表 Google OAuth、Supabase hosted integration 或 production smoke test 通過。這些需在實際專案設定完成後另行驗證。
+- 本機自動測試本身不代表 hosted integration 通過；另於 2026-09-20 使用指定 Google 帳號完成兩份 production migration 的 schema readback、Task／Board 核心流程及詳細資料重整保存 smoke test。正式 GitHub Pages 尚未發布或驗證。
 - `.env.local`、測試輸出與 build output 均不提交。
 
 ## M1 邊界

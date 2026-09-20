@@ -16,7 +16,9 @@
 - npm audit：0 vulnerabilities。
 - `.env.local` 被 Git 忽略，未提交密碼、私人設定或憑證。
 
-## 未驗證與阻塞
+## 當時未驗證與阻塞
+
+以下為核心 commit 當時的狀態。後續 production 驗證結果以 `M1-DETAILS-VALIDATION.md` 為準。
 
 - Supabase 控制台 Google provider 尚未完成有效 OAuth Client ID／Secret 設定。
 - 真實專案 migration 套用須取得 production 授權；尚未套用。
