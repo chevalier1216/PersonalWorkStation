@@ -15,11 +15,14 @@
   - RPC：`ai_command`、`summary_command`、`history_search`、`attachment_command`。
   - Storage bucket：`pws-attachments`。
 - 同次 migration preflight 已確認 `is_allowed()`、`tasks`、`task_notes`、`notifications`、`google_calendar_events`、`storage.objects`、8 個必要 Task detail 欄位、`workspace_command(text,jsonb)` 與 `workspace_command_core_m3(text,jsonb)` 全部存在；M4–M6 migration 的既有依賴已就緒。
+- `storage.objects` 目前沒有 `pws_attachment_insert`、`pws_attachment_select` 或 `pws_attachment_delete` 同名 policy，建立 private bucket 與三項 owner-path policy 不會遇到名稱衝突。
 - Git branch `feat/v1-specs-m1` 的 M1–M7 本機實作已推送至 `b9d623f50687b9283f9717dc9e19b2b168601961`；該 SHA 的 GitHub Actions、unit/integration、desktop/mobile Playwright 與 build 均通過。
+- Production rollout 測試已重現「M3 command wrapper 已存在、M4 tables 尚未建立」的實際基線；M4–M6 schema 在單一 transaction 內可完整套用，且注入失敗時全部回滾。完整 unit/integration 為 11 files / 37 tests passed。
 - GitHub Actions 目前沒有 repository variables 或 repository secrets；`holiday-sync.yml` 與 Pages workflow 所需設定都尚未加入。
 - GitHub Pages 目前為 disabled，publishing source 仍是 `Deploy from a branch`／`None`。Pages workflow 已存在，但尚未切換到 GitHub Actions、合併 `main` 或發布正式 URL。
 - Supabase Auth 的 Site URL 仍為 `http://localhost:3000`，Redirect URLs 為空；正式 Pages URL 尚未加入 allowlist。
 - Google Cloud project `project-workstation-509110` 的 Google Drive API 已於 2026-09-22 啟用並讀回確認狀態為「已啟用」；尚未重新取得指定帳號的 `drive.file` consent。
+- Google Auth Platform 目前為 External／Testing，指定 Google 帳號是唯一 test user；Data Access 尚未登記任何 OAuth scope。V1 不需要公開給其他帳號，但正式 smoke 前必須加入 Calendar 與 `drive.file` scopes，並由指定帳號重新 consent。
 
 ## Cost Guardrail
 
@@ -46,17 +49,18 @@
 4. `202609210003_attachments_maintenance.sql`
 5. `202609210004_attachment_storage_bucket.sql`
 
-套用後以 catalog 查詢確認 7 tables、4 RPC 與 private bucket 全部存在，再以指定 Google 帳號檢查 RLS：authenticated owner 可操作自己的資料，anon 與其他 user 不可讀寫。
+套用後執行 `supabase/verification/m4_m6_postflight.sql`；所有 row 必須為 `passed=true`，以確認 7 tables、4 RPC、RLS、anon revoke、private bucket 與三項 Storage policy。再以指定 Google 帳號檢查 authenticated owner 可操作自己的資料，其他 user 不可讀寫。
 
 ### Phase B — 免費外部整合
 
 1. [完成] 在 Google Cloud project `project-workstation-509110` 啟用 Google Drive API，並讀回確認狀態為「已啟用」。
-2. 讓指定帳號重新執行 Google OAuth consent，保留 Calendar scopes 並新增 `drive.file`。
-3. 部署 `drive-archive` 與 `drive-maintenance`。
-4. 執行真實附件 smoke：上傳 → archive → Drive metadata/size 讀回 → 工作台可重新開啟 → 最後才刪除 Storage 原件。
-5. 執行 failure smoke，確認 Drive 失敗時 Storage 原件保留、通知存在、Retry 可用。
-6. 執行容量與 metadata backup smoke，讀回 `PersonalWorkStation/Exports/YYYY/MM` 檔案並確認輸出不含 token、OAuth identifier 或 secret。
-7. 為 `holiday-sync.yml` 設定既有 publishable key 與獨立 `HOLIDAY_SYNC_SECRET`，手動觸發一次並確認 `calendar_sync_runs` 成功，之後才保留每週排程。
+2. 在 Google Auth Platform Data Access 登記 `calendar.calendarlist.readonly`、`calendar.events` 與 `drive.file`；維持單一 test user，不公開給其他帳號。
+3. 讓指定帳號重新執行 Google OAuth consent，保留 Calendar scopes 並新增 `drive.file`。
+4. 部署 `drive-archive` 與 `drive-maintenance`。
+5. 執行真實附件 smoke：上傳 → archive → Drive metadata/size 讀回 → 工作台可重新開啟 → 最後才刪除 Storage 原件。
+6. 執行 failure smoke，確認 Drive 失敗時 Storage 原件保留、通知存在、Retry 可用。
+7. 執行容量與 metadata backup smoke，讀回 `PersonalWorkStation/Exports/YYYY/MM` 檔案並確認輸出不含 token、OAuth identifier 或 secret。
+8. 為 `holiday-sync.yml` 設定既有 publishable key 與獨立 `HOLIDAY_SYNC_SECRET`，手動觸發一次並確認 `calendar_sync_runs` 成功，之後才保留每週排程。
 
 ### Phase C — OpenAI production（需另行費用授權）
 
