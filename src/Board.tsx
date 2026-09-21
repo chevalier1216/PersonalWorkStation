@@ -33,6 +33,8 @@ import type { AIOperations, AIPendingAction } from "./ai";
 import type { SummaryOperations } from "./summary";
 import type { SearchOperations } from "./search";
 import { SearchView } from "./SearchView";
+import type { AttachmentOperations } from "./attachments";
+import { MaintenanceView } from "./MaintenanceView";
 export type Execute = (
   action: string,
   payload?: Record<string, unknown>,
@@ -181,6 +183,7 @@ export function Board({
   ai,
   summaries,
   search,
+  attachments,
 }: {
   execute: Execute;
   onSignOut?: () => Promise<void>;
@@ -188,6 +191,7 @@ export function Board({
   ai?: AIOperations;
   summaries?: SummaryOperations;
   search?: SearchOperations;
+  attachments?: AttachmentOperations;
 }) {
   const [data, setData] = useState<Snapshot>({
     columns: [],
@@ -233,9 +237,9 @@ export function Board({
   } | null>(null);
   const [managing, setManaging] = useState<Column | null>(null);
   const [addColumn, setAddColumn] = useState(false);
-  const [view, setView] = useState<"today" | "board" | "ai" | "search">(
-    "today",
-  );
+  const [view, setView] = useState<
+    "today" | "board" | "ai" | "search" | "maintenance"
+  >("today");
   const [aiConversationId, setAIConversationId] = useState<string | null>(null);
   const openTask = (taskId: string, noteId?: string, summaryId?: string) =>
     setEditingTarget({ taskId, noteId, summaryId });
@@ -381,6 +385,12 @@ export function Board({
         >
           歷史搜尋
         </button>
+        <button
+          aria-current={view === "maintenance" ? "page" : undefined}
+          onClick={() => setView("maintenance")}
+        >
+          儲存維護
+        </button>
       </nav>
       {view === "today" ? (
         <main>
@@ -436,6 +446,10 @@ export function Board({
               setView("ai");
             }}
           />
+        </main>
+      ) : view === "maintenance" ? (
+        <main>
+          <MaintenanceView operations={attachments} />
         </main>
       ) : (
         <main>
@@ -630,6 +644,7 @@ export function Board({
             summaries={summaries}
             initialNoteId={editingTarget?.noteId}
             initialSummaryId={editingTarget?.summaryId}
+            attachments={attachments}
             remove={async () => {
               if (await run("delete_task", { id: editing.id }))
                 setEditingTarget(null);

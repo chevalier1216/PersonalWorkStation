@@ -11,9 +11,11 @@ import calendarMigration from "../supabase/migrations/202609200004_google_calend
 import aiMigration from "../supabase/migrations/202609200005_ai_chat.sql?raw";
 import taskDetailsCommandFix from "../supabase/migrations/202609210001_restore_task_details_command.sql?raw";
 import m5Migration from "../supabase/migrations/202609210002_ai_summary_search.sql?raw";
+import m6Migration from "../supabase/migrations/202609210003_attachments_maintenance.sql?raw";
 import type { AIOperations, AIState } from "../src/ai";
 import type { SummaryOperations, SummaryState } from "../src/summary";
 import type { SearchField, SearchResult } from "../src/search";
+import type { AttachmentOperations, AttachmentState } from "../src/attachments";
 import "../src/style.css";
 const db = new PGlite("idb://m4-browser-tests-v1");
 await db.waitReady;
@@ -56,6 +58,10 @@ const hasM5 = await db.query<{ exists: boolean }>(
   "select exists(select 1 from pg_tables where schemaname='public' and tablename='ai_summaries')",
 );
 if (!hasM5.rows[0].exists) await db.exec(m5Migration);
+const hasM6 = await db.query<{ exists: boolean }>(
+  "select exists(select 1 from pg_tables where schemaname='public' and tablename='task_attachments')",
+);
+if (!hasM6.rows[0].exists) await db.exec(m6Migration);
 const execute: Execute = async (action, payload = {}) => {
   if (new URLSearchParams(location.search).get("fail") === action)
     throw new Error("測試用連線中斷");
@@ -209,18 +215,123 @@ const summaries: SummaryOperations = {
     });
   },
 };
-const search = async (query: string, field: SearchField) =>
-  db.transaction(async (tx) => {
+const search = async (query: string, field: SearchField) => {
+  const history =
+    field === "attachments"
+      ? []
+      : await db.transaction(async (tx) => {
+          await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+            user,
+          ]);
+          await tx.exec("set local role authenticated");
+          const result = await tx.query<{ result: SearchResult[] }>(
+            "select history_search($1,$2) as result",
+            [query, field],
+          );
+          return result.rows[0].result;
+        });
+  const archive =
+    field === "all" || field === "attachments"
+      ? await db.transaction(async (tx) => {
+          await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+            user,
+          ]);
+          await tx.exec("set local role authenticated");
+          const result = await tx.query<{ result: SearchResult[] }>(
+            "select archive_search($1) as result",
+            [query],
+          );
+          return result.rows[0].result;
+        })
+      : [];
+  return [...history, ...archive].sort((a, b) =>
+    b.occurred_at.localeCompare(a.occurred_at),
+  );
+};
+const attachmentCommand = async (
+  action: string,
+  payload: Record<string, unknown> = {},
+) => {
+  const state = await db.transaction(async (tx) => {
     await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
       user,
     ]);
     await tx.exec("set local role authenticated");
-    const result = await tx.query<{ result: SearchResult[] }>(
-      "select history_search($1,$2) as result",
-      [query, field],
+    const result = await tx.query<{ result: AttachmentState }>(
+      "select attachment_command($1,$2::jsonb) as result",
+      [action, JSON.stringify(payload)],
     );
     return result.rows[0].result;
   });
+  await db.syncToFs();
+  return state;
+};
+const attachments: AttachmentOperations = {
+  load: () => attachmentCommand("load"),
+  upload: (taskId, file, noteId) =>
+    attachmentCommand("record_upload", {
+      task_id: taskId,
+      note_id: noteId ?? null,
+      filename: file.name,
+      mime_type: file.type || "application/octet-stream",
+      size_bytes: file.size,
+      source_storage_path: `${user}/${taskId}/${crypto.randomUUID()}-${file.name}`,
+      metadata: { fixture: true },
+    }),
+  open: async (attachment) => {
+    await attachmentCommand("mark_accessed", { id: attachment.id });
+    return (
+      attachment.drive_web_view_link ??
+      `https://example.invalid/storage/${attachment.id}`
+    );
+  },
+  archive: async (id) => {
+    await attachmentCommand("archive_start", { id });
+    if (new URLSearchParams(location.search).get("archiveFail") === "1") {
+      await attachmentCommand("archive_failure", {
+        id,
+        message: "測試用 Drive 中斷",
+      });
+      throw new Error("測試用 Drive 中斷");
+    }
+    await attachmentCommand("archive_success", {
+      id,
+      drive_file_id: `drive-${id}`,
+      drive_web_view_link: `https://drive.google.com/open?id=drive-${id}`,
+      drive_path: "PersonalWorkStation/Attachments/2026/09/fixture",
+    });
+    await attachmentCommand("archive_source_deleted", { id });
+    return attachmentCommand("load");
+  },
+  measure: async () => {
+    await attachmentCommand("record_capacity", {
+      service: "supabase_database",
+      used_bytes: 12 * 1024 * 1024,
+      limit_bytes: 500 * 1024 * 1024,
+      used_percent: 2.4,
+    });
+    await attachmentCommand("record_capacity", {
+      service: "supabase_storage",
+      used_bytes: 100 * 1024 * 1024,
+      limit_bytes: 1024 * 1024 * 1024,
+      used_percent: 9.77,
+    });
+    return attachmentCommand("record_capacity", {
+      service: "google_drive",
+      used_bytes: 2 * 1024 * 1024 * 1024,
+      limit_bytes: 15 * 1024 * 1024 * 1024,
+      used_percent: 13.33,
+    });
+  },
+  backup: () =>
+    attachmentCommand("record_backup", {
+      status: "completed",
+      drive_file_id: `backup-${Date.now()}`,
+      drive_web_view_link: "https://drive.google.com/open?id=backup-fixture",
+      drive_path: "PersonalWorkStation/Exports/2026/09/metadata-index.json",
+      record_count: 20,
+    }),
+};
 createRoot(document.getElementById("root")!).render(
   <Board
     execute={execute}
@@ -284,5 +395,6 @@ createRoot(document.getElementById("root")!).render(
     ai={ai}
     summaries={summaries}
     search={{ search }}
+    attachments={attachments}
   />,
 );

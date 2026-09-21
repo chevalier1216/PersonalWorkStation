@@ -10,6 +10,15 @@ import { Board } from "./Board";
 import { aiCommand, sendAIMessage, type AIOperations } from "./ai";
 import { generateAISummary, summaryCommand } from "./summary";
 import { historySearch } from "./search";
+import {
+  archiveAttachment,
+  attachmentCommand,
+  backupIsDue,
+  capacityIsDue,
+  openAttachment,
+  runDriveMaintenance,
+  uploadAttachment,
+} from "./attachments";
 
 const googleCalendarScopes = [
   "openid",
@@ -17,6 +26,7 @@ const googleCalendarScopes = [
   "profile",
   "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
   "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/drive.file",
 ].join(" ");
 
 export function App() {
@@ -34,6 +44,24 @@ export function App() {
     }),
     [],
   );
+  useEffect(() => {
+    if (!session?.provider_token) return;
+    let cancelled = false;
+    attachmentCommand("load")
+      .then(async (state) => {
+        if (cancelled) return;
+        if (capacityIsDue(state))
+          await runDriveMaintenance("measure", session.provider_token!);
+        if (backupIsDue(state))
+          await runDriveMaintenance("backup", session.provider_token!);
+      })
+      .catch(() => {
+        // drive-maintenance records a visible workspace notification on failure.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.provider_token]);
   useEffect(() => {
     if (!supabase) return;
     supabase.auth
@@ -120,6 +148,16 @@ export function App() {
         generate: generateAISummary,
       }}
       search={{ search: historySearch }}
+      attachments={{
+        load: () => attachmentCommand("load"),
+        upload: uploadAttachment,
+        open: openAttachment,
+        archive: (id) => archiveAttachment(id, session.provider_token ?? ""),
+        measure: () =>
+          runDriveMaintenance("measure", session.provider_token ?? ""),
+        backup: () =>
+          runDriveMaintenance("backup", session.provider_token ?? ""),
+      }}
       onSignOut={async () => {
         const { error } = await supabase!.auth.signOut();
         if (error) throw error;

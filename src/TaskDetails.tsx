@@ -18,6 +18,11 @@ import {
   type AISummary,
   type SummaryOperations,
 } from "./summary";
+import {
+  emptyAttachmentState,
+  type Attachment,
+  type AttachmentOperations,
+} from "./attachments";
 
 type Run = (
   action: string,
@@ -45,6 +50,7 @@ export function TaskDetails({
   summaries,
   initialNoteId,
   initialSummaryId,
+  attachments,
 }: {
   task: Task;
   data: Snapshot;
@@ -58,6 +64,7 @@ export function TaskDetails({
   summaries?: SummaryOperations;
   initialNoteId?: string;
   initialSummaryId?: string;
+  attachments?: AttachmentOperations;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
@@ -92,6 +99,9 @@ export function TaskDetails({
   const [summaryState, setSummaryState] = useState(emptySummaryState);
   const [summaryBusy, setSummaryBusy] = useState(Boolean(summaries));
   const [summaryError, setSummaryError] = useState("");
+  const [attachmentState, setAttachmentState] = useState(emptyAttachmentState);
+  const [attachmentBusy, setAttachmentBusy] = useState(Boolean(attachments));
+  const [attachmentError, setAttachmentError] = useState("");
   const [relationType, setRelationType] =
     useState<RelationType>("prerequisite");
   const [relatedTask, setRelatedTask] = useState("");
@@ -114,6 +124,9 @@ export function TaskDetails({
   const taskSummaries = summaryState.summaries
     .filter((item) => item.task_id === task.id)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const taskAttachments = attachmentState.attachments.filter(
+    (item) => item.task_id === task.id,
+  );
 
   useEffect(() => {
     if (!summaries) {
@@ -140,6 +153,32 @@ export function TaskDetails({
       cancelled = true;
     };
   }, [summaries]);
+
+  useEffect(() => {
+    if (!attachments) {
+      setAttachmentBusy(false);
+      return;
+    }
+    let cancelled = false;
+    setAttachmentBusy(true);
+    attachments
+      .load()
+      .then((state) => {
+        if (!cancelled) setAttachmentState(state);
+      })
+      .catch((reason) => {
+        if (!cancelled)
+          setAttachmentError(
+            reason instanceof Error ? reason.message : String(reason),
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setAttachmentBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [attachments]);
 
   useEffect(() => {
     const id = initialNoteId
@@ -173,6 +212,37 @@ export function TaskDetails({
     return summaryState.summaries.find(
       (item) => item.id === summary.latest_summary_id,
     );
+  }
+
+  async function uploadFiles(files: FileList | null, noteId?: string) {
+    if (!attachments || !files?.length) return;
+    setAttachmentBusy(true);
+    setAttachmentError("");
+    try {
+      let state = attachmentState;
+      for (const file of Array.from(files))
+        state = await attachments.upload(task.id, file, noteId);
+      setAttachmentState(state);
+    } catch (reason) {
+      setAttachmentError(
+        reason instanceof Error ? reason.message : String(reason),
+      );
+    } finally {
+      setAttachmentBusy(false);
+    }
+  }
+
+  async function openFile(attachment: Attachment) {
+    if (!attachments) return;
+    setAttachmentError("");
+    try {
+      const url = await attachments.open(attachment);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (reason) {
+      setAttachmentError(
+        reason instanceof Error ? reason.message : String(reason),
+      );
+    }
   }
 
   async function save(e: FormEvent) {
@@ -644,10 +714,118 @@ export function TaskDetails({
             >
               <time>{new Date(item.created_at).toLocaleString("zh-TW")}</time>
               <p>{item.content}</p>
+              <label className="note-attachment">
+                附加檔案
+                <input
+                  type="file"
+                  multiple
+                  disabled={!attachments || attachmentBusy}
+                  onChange={(event) => {
+                    void uploadFiles(event.target.files, item.id);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
             </li>
           ))}
           {!notes.length && <li className="subtle">尚無工作紀錄</li>}
         </ol>
+      </section>
+
+      <section className="detail-section full-width attachment-section">
+        <div className="module-heading">
+          <div>
+            <h3>附件與封存</h3>
+            <p className="subtle">
+              附件可留在私人 Storage，或驗證完成後封存至 Google Drive。
+            </p>
+          </div>
+          <label className="file-button">
+            {attachmentBusy ? "處理中…" : "新增附件"}
+            <input
+              aria-label="新增附件"
+              type="file"
+              multiple
+              disabled={!attachments || attachmentBusy}
+              onChange={(event) => {
+                void uploadFiles(event.target.files);
+                event.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+        {attachmentError && (
+          <p className="error" role="alert">
+            {attachmentError}
+          </p>
+        )}
+        <ul className="attachment-list">
+          {taskAttachments.map((attachment) => (
+            <li key={attachment.id}>
+              <div>
+                <strong>{attachment.filename}</strong>
+                <span>
+                  {(attachment.size_bytes / 1024).toFixed(1)} KB ·{" "}
+                  {attachment.note_id ? "Activity 附件" : "Task 附件"}
+                </span>
+                {attachment.drive_path && <span>{attachment.drive_path}</span>}
+                {attachment.archive_error && (
+                  <span className="attachment-failure">
+                    {attachment.archive_error}
+                  </span>
+                )}
+              </div>
+              <span className={`archive-status ${attachment.archive_status}`}>
+                {attachment.archive_status === "archived"
+                  ? "已封存"
+                  : attachment.archive_status === "failed"
+                    ? "封存失敗"
+                    : attachment.archive_status === "archiving"
+                      ? "封存中"
+                      : "使用中"}
+              </span>
+              <button
+                type="button"
+                disabled={!attachments || attachmentBusy}
+                onClick={() => void openFile(attachment)}
+              >
+                開啟
+              </button>
+              {attachment.archive_status !== "archived" && (
+                <button
+                  type="button"
+                  disabled={!attachments || attachmentBusy}
+                  onClick={async () => {
+                    if (!attachments) return;
+                    setAttachmentBusy(true);
+                    setAttachmentError("");
+                    try {
+                      setAttachmentState(
+                        await attachments.archive(attachment.id),
+                      );
+                    } catch (reason) {
+                      setAttachmentError(
+                        reason instanceof Error
+                          ? reason.message
+                          : String(reason),
+                      );
+                      setAttachmentState(await attachments.load());
+                    } finally {
+                      setAttachmentBusy(false);
+                    }
+                  }}
+                >
+                  {attachment.archive_status === "failed"
+                    ? "重試封存"
+                    : "封存至 Drive"}
+                </button>
+              )}
+            </li>
+          ))}
+          {!attachmentBusy && !taskAttachments.length && (
+            <li className="subtle">尚無附件</li>
+          )}
+        </ul>
       </section>
 
       <section className="detail-section full-width summary-section">
