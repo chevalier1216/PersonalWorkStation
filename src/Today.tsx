@@ -155,7 +155,7 @@ function Notifications({ items, run }: { items: Notification[]; run: Run }) {
   );
 }
 
-function CalendarAgenda({
+export function CalendarAgenda({
   dates,
   data,
   tasks,

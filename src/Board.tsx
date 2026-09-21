@@ -35,6 +35,8 @@ import type { SearchOperations } from "./search";
 import { SearchView } from "./SearchView";
 import type { AttachmentOperations } from "./attachments";
 import { MaintenanceView } from "./MaintenanceView";
+import { CalendarView } from "./CalendarView";
+import { SummaryView } from "./SummaryView";
 export type Execute = (
   action: string,
   payload?: Record<string, unknown>,
@@ -238,7 +240,7 @@ export function Board({
   const [managing, setManaging] = useState<Column | null>(null);
   const [addColumn, setAddColumn] = useState(false);
   const [view, setView] = useState<
-    "today" | "board" | "ai" | "search" | "maintenance"
+    "today" | "board" | "calendar" | "ai" | "summary" | "search" | "settings"
   >("today");
   const [aiConversationId, setAIConversationId] = useState<string | null>(null);
   const openTask = (taskId: string, noteId?: string, summaryId?: string) =>
@@ -344,6 +346,9 @@ export function Board({
   }
   return (
     <div className="workspace">
+      <a className="skip-link" href="#main-content">
+        跳至主要內容
+      </a>
       <header>
         <a className="brand" href={import.meta.env.BASE_URL}>
           個人工作臺<span>PERSONAL WORKSTATION</span>
@@ -374,26 +379,38 @@ export function Board({
           任務看板
         </button>
         <button
+          aria-current={view === "calendar" ? "page" : undefined}
+          onClick={() => setView("calendar")}
+        >
+          行事曆
+        </button>
+        <button
           aria-current={view === "ai" ? "page" : undefined}
           onClick={() => setView("ai")}
         >
           AI 對話
         </button>
         <button
+          aria-current={view === "summary" ? "page" : undefined}
+          onClick={() => setView("summary")}
+        >
+          AI 摘要
+        </button>
+        <button
           aria-current={view === "search" ? "page" : undefined}
           onClick={() => setView("search")}
         >
-          歷史搜尋
+          歷史紀錄
         </button>
         <button
-          aria-current={view === "maintenance" ? "page" : undefined}
-          onClick={() => setView("maintenance")}
+          aria-current={view === "settings" ? "page" : undefined}
+          onClick={() => setView("settings")}
         >
-          儲存維護
+          設定
         </button>
       </nav>
       {view === "today" ? (
-        <main>
+        <main id="main-content">
           {error && (
             <div className="error" role="alert">
               {error}
@@ -425,8 +442,23 @@ export function Board({
             }}
           />
         </main>
+      ) : view === "calendar" ? (
+        <main id="main-content">
+          <CalendarView
+            data={data}
+            busy={busy}
+            calendar={calendar}
+            run={run}
+            syncCalendar={() =>
+              calendar
+                ? runCalendar(() => calendar.sync(data))
+                : Promise.resolve(false)
+            }
+            openTask={(id) => openTask(id)}
+          />
+        </main>
       ) : view === "ai" ? (
-        <main>
+        <main id="main-content">
           <AIChat
             operations={ai}
             resolveAction={resolveAIAction}
@@ -436,8 +468,18 @@ export function Board({
             initialConversationId={aiConversationId}
           />
         </main>
+      ) : view === "summary" ? (
+        <main id="main-content">
+          <SummaryView
+            operations={summaries}
+            tasks={data.tasks}
+            openTask={(taskId, summaryId) =>
+              openTask(taskId, undefined, summaryId)
+            }
+          />
+        </main>
       ) : view === "search" ? (
-        <main>
+        <main id="main-content">
           <SearchView
             operations={search}
             openTask={openTask}
@@ -447,12 +489,12 @@ export function Board({
             }}
           />
         </main>
-      ) : view === "maintenance" ? (
-        <main>
+      ) : view === "settings" ? (
+        <main id="main-content">
           <MaintenanceView operations={attachments} />
         </main>
       ) : (
-        <main>
+        <main id="main-content">
           <div className="heading">
             <div>
               <p className="eyebrow">把想法化為進展</p>

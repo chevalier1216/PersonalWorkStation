@@ -23,7 +23,7 @@ test("history search locates a Note and Summary versions persist", async ({
   await dialog.getByRole("button", { name: "新增紀錄" }).click();
   await dialog.getByLabel("關閉", { exact: true }).click();
 
-  await page.getByRole("button", { name: "歷史搜尋", exact: true }).click();
+  await page.getByRole("button", { name: "歷史紀錄", exact: true }).click();
   await page.getByLabel("指定欄位").selectOption("notes");
   await page.getByLabel("搜尋內容").fill(note);
   await page.getByRole("button", { name: "搜尋", exact: true }).click();
@@ -64,7 +64,7 @@ test("chat history search opens the matching conversation", async ({
   await chat.getByRole("button", { name: "送出", exact: true }).click();
   await expect(chat.getByText(phrase, { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "歷史搜尋", exact: true }).click();
+  await page.getByRole("button", { name: "歷史紀錄", exact: true }).click();
   await page.getByLabel("指定欄位").selectOption("chat");
   await page.getByLabel("搜尋內容").fill(phrase);
   await page.getByRole("button", { name: "搜尋", exact: true }).click();

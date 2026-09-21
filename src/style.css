@@ -15,6 +15,19 @@ body {
   background: radial-gradient(ellipse at 75% 0%, #424c5d60, transparent 50%);
   min-height: 100vh;
 }
+.skip-link {
+  position: fixed;
+  left: 16px;
+  top: -80px;
+  z-index: 30;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #dce7f5;
+  color: #252930;
+}
+.skip-link:focus {
+  top: 12px;
+}
 button,
 input,
 select,
@@ -802,6 +815,33 @@ dialog {
 .summary-heading span {
   color: #9facbe;
   font-size: 0.72rem;
+}
+.summary-index {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+.summary-index button {
+  width: 100%;
+  min-height: 150px;
+  display: grid;
+  gap: 7px;
+  align-content: start;
+  text-align: left;
+  padding: 18px;
+  background: linear-gradient(135deg, #a3b5d515, #a3b5d508);
+}
+.summary-index span,
+.summary-index small,
+.summary-index time {
+  color: #9facbe;
+  font-size: 0.72rem;
+}
+.calendar-view .calendar-agenda {
+  margin-top: 24px;
 }
 .summary-heading {
   display: flex;

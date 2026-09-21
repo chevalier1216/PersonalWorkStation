@@ -60,7 +60,7 @@ test("Task and Activity attachments persist, archive and remain searchable", asy
   await expect(dialog.getByText(noteFilename, { exact: true })).toBeVisible();
   await dialog.getByLabel("關閉", { exact: true }).click();
 
-  await page.getByRole("button", { name: "歷史搜尋", exact: true }).click();
+  await page.getByRole("button", { name: "歷史紀錄", exact: true }).click();
   await page.getByLabel("指定欄位").selectOption("attachments");
   await page.getByLabel("搜尋內容").fill(taskFilename);
   await page.getByRole("button", { name: "搜尋", exact: true }).click();
@@ -111,7 +111,7 @@ test("Drive failure keeps the source and Retry archives the same attachment", as
 
 test("capacity snapshots and metadata backup persist", async ({ page }) => {
   await page.goto("/PersonalWorkStation/tests/fixture.html");
-  await page.getByRole("button", { name: "儲存維護", exact: true }).click();
+  await page.getByRole("button", { name: "設定", exact: true }).click();
   const maintenance = page.getByRole("region", { name: "儲存與維護" });
   await maintenance.getByRole("button", { name: "更新容量" }).click();
   await expect(maintenance.getByText("Supabase Database")).toBeVisible();
@@ -132,7 +132,7 @@ test("capacity snapshots and metadata backup persist", async ({ page }) => {
   ).toBeVisible();
 
   await page.reload();
-  await page.getByRole("button", { name: "儲存維護", exact: true }).click();
+  await page.getByRole("button", { name: "設定", exact: true }).click();
   await expect(
     page
       .getByRole("region", { name: "儲存與維護" })
