@@ -24,7 +24,12 @@
 
 - Google Drive API 官方目前說明：標準使用無額外費用；每日每 project 400,000,000 quota units 門檻內不收費，超額計費預計於 2026 年稍後實施且會提前至少 90 天公告。本產品單人每日／每週操作遠低於該門檻，但正式啟用前仍需明確授權，未來若接近門檻必須停止。
 - Supabase Free：Database 500 MB、Storage 1 GB；Free 不收超額費用，但超限會受限制。附件單檔上限 50 MB。
-- 尚未套用 M6 migrations、部署 `drive-archive`／`drive-maintenance`、啟用 Google Drive API、加入 `drive.file` scope 或執行真實 Drive smoke test。
+- 尚未套用 M6 migrations、部署 `drive-archive`／`drive-maintenance`、讓指定帳號同意 `drive.file` scope 或執行真實 Drive smoke test。
+
+### 2026-09-22 Production 前置更新
+
+- Google Cloud project `project-workstation-509110` 的 Google Drive API 已在免費標準額度內啟用，並於 API/服務詳細資料讀回確認狀態為「已啟用」。
+- M6 migrations、private bucket、`drive-archive`／`drive-maintenance`、指定帳號的 `drive.file` consent 與真實 Drive smoke test 仍未完成；因此 M6 production 狀態仍為未完成。
 
 官方來源：
 
