@@ -65,21 +65,35 @@ export function AIChat({
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(Boolean(operations));
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!operations) return;
+    if (!operations) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
     operations
       .load()
       .then((next) => {
+        if (cancelled) return;
         setState(next);
         setConversationId(
           (current) => current ?? next.conversations[0]?.id ?? null,
         );
       })
-      .catch((reason) =>
-        setError(reason instanceof Error ? reason.message : String(reason)),
-      );
+      .catch((reason) => {
+        if (!cancelled)
+          setError(reason instanceof Error ? reason.message : String(reason));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [operations]);
 
   const active =
@@ -96,7 +110,7 @@ export function AIChat({
 
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (!operations || !message.trim() || busy) return;
+    if (!operations || !message.trim() || busy || loading) return;
     setBusy(true);
     setError("");
     try {
@@ -140,7 +154,7 @@ export function AIChat({
         </div>
         {!compact && operations && (
           <button
-            disabled={busy}
+            disabled={busy || loading}
             onClick={async () => {
               const next = await operations.createConversation("新對話");
               setState(next);
@@ -220,13 +234,17 @@ export function AIChat({
                 {compact ? "詢問 AI" : "訊息"}
                 <textarea
                   value={message}
+                  disabled={loading}
                   maxLength={20000}
                   placeholder="例如：建立一個明天下午 3 點整理週報的 High Task"
                   onChange={(event) => setMessage(event.target.value)}
                 />
               </label>
-              <button className="primary" disabled={busy || !message.trim()}>
-                {busy ? "處理中…" : "送出"}
+              <button
+                className="primary"
+                disabled={busy || loading || !message.trim()}
+              >
+                {busy || loading ? "處理中…" : "送出"}
               </button>
             </form>
           </div>
