@@ -25,7 +25,11 @@
 - 2026-09-20 已取得明確發布授權，並將 `202609200004_google_calendar.sql` 套用至 Supabase project `wcvaazjhkczdgtudssdl`。
 - Schema readback：`google_calendars`、`google_calendar_events`、`task_calendar_links`、`google_calendar_sync_state` 均存在，4 張表的 RLS 全部啟用，4 條 owner policy 均存在。
 - `authenticated` 可執行 `workspace_command(text,jsonb)`；既有 4 筆 Task 與 3 個 Board 欄位仍可讀取。
-- Production-backed 工作臺已成功載入 Calendar 模組與既有 Task／通知；尚未建立真實 Google Calendar event。
+- Google Cloud project `project-workstation-509110` 已啟用 Calendar API；OAuth test user 已加入指定帳號，並完成 Calendar list readonly 與 events read/write consent。
+- Production-backed 工作臺已同步 3 個 Calendar、保存 1 個選取項目，並成功讀取實際事件。
+- 已建立 `M3 Calendar production smoke · 2026-09-21` Task 與真實 Google Calendar all-day event；Task relation 與 event link 在重新整理後仍保留。
+- 首次同步的 `Failed to fetch` 已保存通知與失敗狀態；重新連結後 Retry 成功，Task 與既有資料未遺失。
+- Production 的 `workspace_command` detail persistence wrapper 已驗證：以 authenticated role 更新 `start_date` 後讀回為 `2026-09-23`。
 
 ## 成本
 
@@ -34,11 +38,6 @@
 - Google 預告 2026 年稍後可能對超額請求收費；接近門檻或政策改變時必須依 Cost Guardrail 停止並通知。
 - 官方來源：https://developers.google.com/workspace/calendar/api/guides/quota
 
-## 尚未完成／未驗證
+## 完成判定
 
-- Google Calendar OAuth 真實授權目前被 Google 測試階段限制阻擋：`wcvaazjhkczdgtudssdl.supabase.co` 尚未完成 Google 驗證，只有開發人員核准的測試使用者可存取。
-- 【需要使用者本人操作】在 Google Cloud Console 的 OAuth consent / Audience（Testing）把實際登入的 Google 帳號加入 Test users，必要時重新同意 Calendar scope，再回工作臺重試連結。
-- Calendar 真實授權與 production smoke test 暫時保留；此阻擋不得卡住其他可繼續工作，也不得為解除阻擋自行啟用可能收費資源或繞過 Cost Guardrail。
-- Google Cloud project `project-workstation-509110` 的 Calendar API 啟用狀態仍須在重新授權前確認；若啟用動作涉及新的條款、計費或可能費用，依 Cost Guardrail 等待使用者明確授權。
-- 尚未以真實 Google Calendar 完成建立事件、relation persistence、failure／Retry 與 production refresh smoke test。
-- 因此 M3 尚未達到 `07-ACCEPTANCE-TESTS.md` 的正式完成定義。
+M3 的 Calendar 清單、事件讀取、Task event 建立、relation persistence、失敗隔離、通知與 Retry 均已完成 production smoke test，符合 `07-ACCEPTANCE-TESTS.md` 的 M3 完成定義。

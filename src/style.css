@@ -342,6 +342,98 @@ h1 {
 .calendar-link-state.success {
   color: #b8d7bd;
 }
+.ai-chat {
+  background: linear-gradient(135deg, #9fadd51a, #8f7bb20d);
+  border: 1px solid #adbed326;
+  border-radius: 18px;
+  padding: 20px;
+  min-width: 0;
+}
+.ai-layout {
+  display: grid;
+  grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
+  gap: 16px;
+}
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.conversation-list button {
+  text-align: left;
+}
+.conversation-list button[aria-current="page"] {
+  border-color: #a6bad677;
+  background: #9ab1d125;
+}
+.conversation-list strong,
+.conversation-list time {
+  display: block;
+}
+.conversation-list time {
+  color: #9facbe;
+  font-size: 0.65rem;
+  margin-top: 3px;
+}
+.chat-panel {
+  min-width: 0;
+}
+.message-list {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.message-list li {
+  max-width: 82%;
+  padding: 10px 13px;
+  border-radius: 12px;
+  margin-bottom: 9px;
+  background: #434c5a8f;
+}
+.message-list li.user {
+  margin-left: auto;
+  background: #53657d8f;
+}
+.message-list span {
+  color: #9fb0c6;
+  font-size: 0.65rem;
+}
+.message-list p {
+  margin: 3px 0 0;
+  white-space: pre-wrap;
+}
+.chat-compose textarea {
+  min-height: 86px;
+}
+.chat-compose label {
+  margin-bottom: 8px;
+}
+.pending-action {
+  border: 1px solid #d6bd7f55;
+  border-radius: 12px;
+  padding: 14px;
+  margin: 12px 0;
+  background: #816d3720;
+}
+.action-details {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+}
+.action-details li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 0;
+  border-bottom: 1px solid #d6bd7f22;
+}
+.action-details span,
+.action-detail {
+  color: #c7d0dc;
+  overflow-wrap: anywhere;
+}
 .layout-editor {
   margin-bottom: 18px;
 }
@@ -767,6 +859,19 @@ dialog::backdrop {
   }
   .calendar-actions {
     justify-content: flex-start;
+  }
+  .ai-layout {
+    grid-template-columns: 1fr;
+  }
+  .conversation-list {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .conversation-list button {
+    min-width: 180px;
+  }
+  .message-list li {
+    max-width: 94%;
   }
   .today-group li button {
     grid-template-columns: 1fr auto;

@@ -28,6 +28,8 @@ import {
 } from "./domain";
 import { TaskDetails } from "./TaskDetails";
 import { Today } from "./Today";
+import { AIChat } from "./AIChat";
+import type { AIOperations, AIPendingAction } from "./ai";
 export type Execute = (
   action: string,
   payload?: Record<string, unknown>,
@@ -173,10 +175,12 @@ export function Board({
   execute,
   onSignOut,
   calendar,
+  ai,
 }: {
   execute: Execute;
   onSignOut?: () => Promise<void>;
   calendar?: CalendarOperations;
+  ai?: AIOperations;
 }) {
   const [data, setData] = useState<Snapshot>({
     columns: [],
@@ -217,7 +221,7 @@ export function Board({
   } | null>(null);
   const [managing, setManaging] = useState<Column | null>(null);
   const [addColumn, setAddColumn] = useState(false);
-  const [view, setView] = useState<"today" | "board">("today");
+  const [view, setView] = useState<"today" | "board" | "ai">("today");
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor),
@@ -301,6 +305,22 @@ export function Board({
     }
     void run("move_task", { id: task.id, column_id, position });
   }
+  async function resolveAIAction(action: AIPendingAction, confirm: boolean) {
+    if (!ai) throw new Error("AI 操作尚未設定");
+    if (confirm && action.action_type === "calendar_relation") {
+      if (!calendar) throw new Error("Google Calendar 尚未設定");
+      const task = data.tasks.find(
+        (item) => item.id === action.payload.task_id,
+      );
+      const calendarId = String(action.payload.calendar_id ?? "");
+      if (!task) throw new Error("找不到要建立 Calendar event 的 Task");
+      if (!calendarId) throw new Error("待確認動作缺少 Calendar");
+      setData(await calendar.create(task, calendarId));
+      setLoaded(true);
+      setNotice("Calendar 狀態已更新");
+    }
+    return ai.resolve(action, confirm);
+  }
   return (
     <div className="workspace">
       <header>
@@ -332,6 +352,12 @@ export function Board({
         >
           任務看板
         </button>
+        <button
+          aria-current={view === "ai" ? "page" : undefined}
+          onClick={() => setView("ai")}
+        >
+          AI 對話
+        </button>
       </nav>
       {view === "today" ? (
         <main>
@@ -355,180 +381,197 @@ export function Board({
             run={run}
             calendar={calendar}
             syncCalendar={() =>
-              calendar ? runCalendar(() => calendar.sync(data)) : Promise.resolve(false)
+              calendar
+                ? runCalendar(() => calendar.sync(data))
+                : Promise.resolve(false)
             }
+            ai={ai}
+            resolveAIAction={resolveAIAction}
+            refreshWorkspace={async () => {
+              await run("load");
+            }}
+          />
+        </main>
+      ) : view === "ai" ? (
+        <main>
+          <AIChat
+            operations={ai}
+            resolveAction={resolveAIAction}
+            onWorkspaceChanged={async () => {
+              await run("load");
+            }}
           />
         </main>
       ) : (
-      <main>
-        <div className="heading">
-          <div>
-            <p className="eyebrow">把想法化為進展</p>
-            <h1>任務看板</h1>
-            <p className="muted">
-              {data.tasks.filter((t) => !t.completed_at).length} 件待完成 ·
-              每一步，都留下進度。
+        <main>
+          <div className="heading">
+            <div>
+              <p className="eyebrow">把想法化為進展</p>
+              <h1>任務看板</h1>
+              <p className="muted">
+                {data.tasks.filter((t) => !t.completed_at).length} 件待完成 ·
+                每一步，都留下進度。
+              </p>
+            </div>
+            <div className="toolbar">
+              <button disabled={busy} onClick={() => void run("load")}>
+                重新整理
+              </button>
+              <button
+                disabled={!loaded || busy}
+                onClick={() => setAddColumn(true)}
+              >
+                新增欄位
+              </button>
+            </div>
+          </div>
+          {error && (
+            <div className="error" role="alert">
+              {error}
+            </div>
+          )}
+          <div
+            className="status"
+            role="status"
+            aria-label="儲存狀態"
+            aria-live="polite"
+          >
+            {busy ? "正在儲存或載入…" : notice}
+          </div>
+          <form className="quick-add" onSubmit={quickAdd}>
+            <label htmlFor="quick">下一件要做的事</label>
+            <div>
+              <input
+                id="quick"
+                placeholder="輸入標題，按 Enter 建立"
+                value={quick}
+                maxLength={300}
+                onChange={(e) => setQuick(e.target.value)}
+                disabled={!loaded || busy}
+              />
+              <button
+                className="primary"
+                disabled={!loaded || busy || !quick.trim()}
+              >
+                新增任務
+              </button>
+            </div>
+          </form>
+          <DndContext sensors={sensors} onDragEnd={dragEnd}>
+            <div className="board" aria-busy={busy}>
+              {data.columns.map((column, ci) => {
+                const tasks = sortedTasks(
+                  data.tasks.filter((t) => t.column_id === column.id),
+                );
+                return (
+                  <section
+                    className="column"
+                    key={column.id}
+                    aria-label={column.title}
+                  >
+                    <div className="column-header">
+                      <div>
+                        <h2>
+                          {column.title} <span>{tasks.length}</span>
+                        </h2>
+                        <small>{kindLabels[column.kind]}</small>
+                      </div>
+                      <div>
+                        <button
+                          aria-label={`左移欄位 ${column.title}`}
+                          disabled={busy || ci === 0}
+                          onClick={() =>
+                            void run("move_column", {
+                              id: column.id,
+                              position: ci - 1,
+                            })
+                          }
+                        >
+                          ←
+                        </button>
+                        <button
+                          aria-label={`右移欄位 ${column.title}`}
+                          disabled={busy || ci === data.columns.length - 1}
+                          onClick={() =>
+                            void run("move_column", {
+                              id: column.id,
+                              position: ci + 1,
+                            })
+                          }
+                        >
+                          →
+                        </button>
+                        <button
+                          aria-label={`管理 ${column.title}`}
+                          disabled={busy}
+                          onClick={() => setManaging(column)}
+                        >
+                          ⋯
+                        </button>
+                      </div>
+                    </div>
+                    <Drop id={column.id}>
+                      {tasks.length === 0 && (
+                        <p className="empty">將任務移到這裡</p>
+                      )}
+                      {tasks.map((task, index) => (
+                        <Card
+                          key={task.id}
+                          task={task}
+                          busy={busy}
+                          edit={() => setEditingId(task.id)}
+                          columns={data.columns}
+                          index={index}
+                          count={tasks.length}
+                          tags={data.tags.filter(
+                            (tag) => tag.task_id === task.id,
+                          )}
+                          checklistDone={
+                            data.checklist.filter(
+                              (item) =>
+                                item.task_id === task.id && item.completed,
+                            ).length
+                          }
+                          checklistTotal={
+                            data.checklist.filter(
+                              (item) => item.task_id === task.id,
+                            ).length
+                          }
+                          blockedBy={data.relations
+                            .filter(
+                              (relation) =>
+                                relation.task_id === task.id &&
+                                relation.relation_type === "prerequisite",
+                            )
+                            .map((relation) =>
+                              data.tasks.find(
+                                (item) => item.id === relation.related_task_id,
+                              ),
+                            )
+                            .filter((item): item is Task =>
+                              Boolean(item && !item.completed_at),
+                            )
+                            .map((item) => item.title)}
+                          move={(column_id, position) =>
+                            requestMove(task, column_id, position)
+                          }
+                        />
+                      ))}
+                    </Drop>
+                  </section>
+                );
+              })}
+            </div>
+          </DndContext>
+          {!loaded && !busy && (
+            <p className="empty">
+              尚未取得看板資料。請確認帳號權限與連線後重試。
             </p>
-          </div>
-          <div className="toolbar">
-            <button disabled={busy} onClick={() => void run("load")}>
-              重新整理
-            </button>
-            <button
-              disabled={!loaded || busy}
-              onClick={() => setAddColumn(true)}
-            >
-              新增欄位
-            </button>
-          </div>
-        </div>
-        {error && (
-          <div className="error" role="alert">
-            {error}
-          </div>
-        )}
-        <div
-          className="status"
-          role="status"
-          aria-label="儲存狀態"
-          aria-live="polite"
-        >
-          {busy ? "正在儲存或載入…" : notice}
-        </div>
-        <form className="quick-add" onSubmit={quickAdd}>
-          <label htmlFor="quick">下一件要做的事</label>
-          <div>
-            <input
-              id="quick"
-              placeholder="輸入標題，按 Enter 建立"
-              value={quick}
-              maxLength={300}
-              onChange={(e) => setQuick(e.target.value)}
-              disabled={!loaded || busy}
-            />
-            <button
-              className="primary"
-              disabled={!loaded || busy || !quick.trim()}
-            >
-              新增任務
-            </button>
-          </div>
-        </form>
-        <DndContext sensors={sensors} onDragEnd={dragEnd}>
-          <div className="board" aria-busy={busy}>
-            {data.columns.map((column, ci) => {
-              const tasks = sortedTasks(
-                data.tasks.filter((t) => t.column_id === column.id),
-              );
-              return (
-                <section
-                  className="column"
-                  key={column.id}
-                  aria-label={column.title}
-                >
-                  <div className="column-header">
-                    <div>
-                      <h2>
-                        {column.title} <span>{tasks.length}</span>
-                      </h2>
-                      <small>{kindLabels[column.kind]}</small>
-                    </div>
-                    <div>
-                      <button
-                        aria-label={`左移欄位 ${column.title}`}
-                        disabled={busy || ci === 0}
-                        onClick={() =>
-                          void run("move_column", {
-                            id: column.id,
-                            position: ci - 1,
-                          })
-                        }
-                      >
-                        ←
-                      </button>
-                      <button
-                        aria-label={`右移欄位 ${column.title}`}
-                        disabled={busy || ci === data.columns.length - 1}
-                        onClick={() =>
-                          void run("move_column", {
-                            id: column.id,
-                            position: ci + 1,
-                          })
-                        }
-                      >
-                        →
-                      </button>
-                      <button
-                        aria-label={`管理 ${column.title}`}
-                        disabled={busy}
-                        onClick={() => setManaging(column)}
-                      >
-                        ⋯
-                      </button>
-                    </div>
-                  </div>
-                  <Drop id={column.id}>
-                    {tasks.length === 0 && (
-                      <p className="empty">將任務移到這裡</p>
-                    )}
-                    {tasks.map((task, index) => (
-                      <Card
-                        key={task.id}
-                        task={task}
-                        busy={busy}
-                        edit={() => setEditingId(task.id)}
-                        columns={data.columns}
-                        index={index}
-                        count={tasks.length}
-                        tags={data.tags.filter(
-                          (tag) => tag.task_id === task.id,
-                        )}
-                        checklistDone={
-                          data.checklist.filter(
-                            (item) =>
-                              item.task_id === task.id && item.completed,
-                          ).length
-                        }
-                        checklistTotal={
-                          data.checklist.filter(
-                            (item) => item.task_id === task.id,
-                          ).length
-                        }
-                        blockedBy={data.relations
-                          .filter(
-                            (relation) =>
-                              relation.task_id === task.id &&
-                              relation.relation_type === "prerequisite",
-                          )
-                          .map((relation) =>
-                            data.tasks.find(
-                              (item) => item.id === relation.related_task_id,
-                            ),
-                          )
-                          .filter((item): item is Task =>
-                            Boolean(item && !item.completed_at),
-                          )
-                          .map((item) => item.title)}
-                        move={(column_id, position) =>
-                          requestMove(task, column_id, position)
-                        }
-                      />
-                    ))}
-                  </Drop>
-                </section>
-              );
-            })}
-          </div>
-        </DndContext>
-        {!loaded && !busy && (
-          <p className="empty">
-            尚未取得看板資料。請確認帳號權限與連線後重試。
+          )}
+          <p className="footnote">
+            拖曳卡片可跨欄移動；也可使用卡片下方選單與排序按鈕。
           </p>
-        )}
-        <p className="footnote">
-          拖曳卡片可跨欄移動；也可使用卡片下方選單與排序按鈕。
-        </p>
-      </main>
+        </main>
       )}
       {editing && (
         <Modal

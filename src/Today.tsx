@@ -7,16 +7,19 @@ import {
   type Task,
 } from "./domain";
 import type { CalendarOperations } from "./Board";
+import { AIChat } from "./AIChat";
+import type { AIOperations, AIPendingAction, AIState } from "./ai";
 
 type Run = (
   action: string,
   payload?: Record<string, unknown>,
 ) => Promise<boolean>;
-type ModuleId = "tasks" | "calendar" | "notifications" | "holidays";
+type ModuleId = "tasks" | "calendar" | "ai_chat" | "notifications" | "holidays";
 
 const modules: Array<{ id: ModuleId; label: string }> = [
   { id: "tasks", label: "任務" },
   { id: "calendar", label: "Google Calendar" },
+  { id: "ai_chat", label: "AI Chat" },
   { id: "notifications", label: "通知" },
   { id: "holidays", label: "假日提醒" },
 ];
@@ -92,7 +95,9 @@ function TaskRows({
                 {task.due_at && (
                   <time>{new Date(task.due_at).toLocaleString("zh-TW")}</time>
                 )}
-                {!task.due_at && task.start_date && <time>{task.start_date}</time>}
+                {!task.due_at && task.start_date && (
+                  <time>{task.start_date}</time>
+                )}
               </button>
             </li>
           ))}
@@ -104,20 +109,16 @@ function TaskRows({
   );
 }
 
-function Notifications({
-  items,
-  run,
-}: {
-  items: Notification[];
-  run: Run;
-}) {
+function Notifications({ items, run }: { items: Notification[]; run: Run }) {
   const unread = items.filter((item) => !item.read_at).length;
   return (
     <section className="today-module" aria-label="通知">
       <div className="module-heading">
         <div>
           <p className="eyebrow">NOTIFICATIONS</p>
-          <h2>通知 <span>{unread} 未讀</span></h2>
+          <h2>
+            通知 <span>{unread} 未讀</span>
+          </h2>
         </div>
         {unread > 0 && (
           <button onClick={() => void run("mark_all_notifications_read")}>
@@ -137,7 +138,9 @@ function Notifications({
               {!item.read_at && (
                 <button
                   aria-label={`標為已讀 ${item.title}`}
-                  onClick={() => void run("mark_notification_read", { id: item.id })}
+                  onClick={() =>
+                    void run("mark_notification_read", { id: item.id })
+                  }
                 >
                   已讀
                 </button>
@@ -171,7 +174,8 @@ function CalendarAgenda({
           ...tasks
             .filter(
               (task) =>
-                taskDate(task, "due") === day || taskDate(task, "start") === day,
+                taskDate(task, "due") === day ||
+                taskDate(task, "start") === day,
             )
             .map((task) => ({
               id: `task:${task.id}`,
@@ -184,7 +188,9 @@ function CalendarAgenda({
             .filter((event) =>
               event.all_day
                 ? event.start_date === day
-                : Boolean(event.start_at && dateKey(new Date(event.start_at)) === day),
+                : Boolean(
+                    event.start_at && dateKey(new Date(event.start_at)) === day,
+                  ),
             )
             .map((event) => ({
               id: `event:${event.calendar_id}:${event.event_id}`,
@@ -196,7 +202,13 @@ function CalendarAgenda({
         ].sort((a, b) => a.at.localeCompare(b.at));
         return (
           <section className="agenda-day" key={day} aria-label={`行程 ${day}`}>
-            <h3>{date.toLocaleDateString("zh-TW", { month: "numeric", day: "numeric", weekday: "short" })}</h3>
+            <h3>
+              {date.toLocaleDateString("zh-TW", {
+                month: "numeric",
+                day: "numeric",
+                weekday: "short",
+              })}
+            </h3>
             {entries.length ? (
               <ol>
                 {entries.map((entry) => (
@@ -214,11 +226,17 @@ function CalendarAgenda({
                         <span>Task</span> {entry.title}
                       </button>
                     ) : entry.event.html_link ? (
-                      <a href={entry.event.html_link} target="_blank" rel="noreferrer">
+                      <a
+                        href={entry.event.html_link}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
                         <span>Calendar</span> {entry.title}
                       </a>
                     ) : (
-                      <p><span>Calendar</span> {entry.title}</p>
+                      <p>
+                        <span>Calendar</span> {entry.title}
+                      </p>
                     )}
                   </li>
                 ))}
@@ -240,6 +258,9 @@ export function Today({
   run,
   calendar,
   syncCalendar,
+  ai,
+  resolveAIAction,
+  refreshWorkspace,
 }: {
   data: Snapshot;
   busy: boolean;
@@ -247,6 +268,12 @@ export function Today({
   run: Run;
   calendar?: CalendarOperations;
   syncCalendar: () => Promise<boolean>;
+  ai?: AIOperations;
+  resolveAIAction?: (
+    action: AIPendingAction,
+    confirm: boolean,
+  ) => Promise<AIState>;
+  refreshWorkspace: () => Promise<void>;
 }) {
   const [editingLayout, setEditingLayout] = useState(false);
   const [editingCalendars, setEditingCalendars] = useState(false);
@@ -282,10 +309,12 @@ export function Today({
   );
   const order = [
     ...configured,
-    ...modules.map((module) => module.id).filter((id) => !configured.includes(id)),
+    ...modules
+      .map((module) => module.id)
+      .filter((id) => !configured.includes(id)),
   ];
-  const hidden = data.preferences.hidden_modules.filter(
-    (id): id is ModuleId => modules.some((module) => module.id === id),
+  const hidden = data.preferences.hidden_modules.filter((id): id is ModuleId =>
+    modules.some((module) => module.id === id),
   );
 
   async function saveLayout(nextOrder: ModuleId[], nextHidden: ModuleId[]) {
@@ -334,7 +363,9 @@ export function Today({
           <div className="module-heading">
             <div>
               <p className="eyebrow">GOOGLE CALENDAR</p>
-              <h2>行程 <span>{selected.length} 個 Calendar</span></h2>
+              <h2>
+                行程 <span>{selected.length} 個 Calendar</span>
+              </h2>
               <p className="subtle">
                 {data.google_calendar_sync.last_error
                   ? `上次同步失敗：${data.google_calendar_sync.last_error}`
@@ -357,7 +388,10 @@ export function Today({
                       重新連結
                     </button>
                   )}
-                  <button disabled={busy} onClick={() => setEditingCalendars((value) => !value)}>
+                  <button
+                    disabled={busy}
+                    onClick={() => setEditingCalendars((value) => !value)}
+                  >
                     選擇 Calendar
                   </button>
                 </>
@@ -388,11 +422,14 @@ export function Today({
                             : candidate.selected,
                         )
                         .map((candidate) => candidate.calendar_id);
-                      void run("calendar_set_selections", { calendar_ids: ids });
+                      void run("calendar_set_selections", {
+                        calendar_ids: ids,
+                      });
                     }}
                   />
                   <i style={{ background: item.color }} />
-                  {item.summary}{item.is_primary ? "（主要）" : ""}
+                  {item.summary}
+                  {item.is_primary ? "（主要）" : ""}
                 </label>
               ))}
               <p className="subtle">變更後按「同步」更新事件快取。</p>
@@ -414,6 +451,15 @@ export function Today({
     }
     if (id === "notifications")
       return <Notifications items={data.notifications} run={run} />;
+    if (id === "ai_chat")
+      return (
+        <AIChat
+          compact
+          operations={ai}
+          resolveAction={resolveAIAction}
+          onWorkspaceChanged={refreshWorkspace}
+        />
+      );
     return (
       <section className="today-module" aria-label="假日提醒">
         <div className="module-heading">
@@ -442,11 +488,16 @@ export function Today({
     <>
       <div className="heading today-heading">
         <div>
-          <p className="eyebrow">{now.toLocaleDateString("zh-TW", { dateStyle: "full" })}</p>
+          <p className="eyebrow">
+            {now.toLocaleDateString("zh-TW", { dateStyle: "full" })}
+          </p>
           <h1>今天</h1>
           <p className="muted">依中國實際工作日安排接下來五個工作日。</p>
         </div>
-        <button disabled={busy} onClick={() => setEditingLayout((value) => !value)}>
+        <button
+          disabled={busy}
+          onClick={() => setEditingLayout((value) => !value)}
+        >
           {editingLayout ? "完成版面編輯" : "編輯版面"}
         </button>
       </div>
@@ -464,7 +515,10 @@ export function Today({
                   disabled={busy || index === 0}
                   onClick={() => {
                     const next = [...order];
-                    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                    [next[index - 1], next[index]] = [
+                      next[index],
+                      next[index - 1],
+                    ];
                     void saveLayout(next, hidden);
                   }}
                 >
@@ -475,7 +529,10 @@ export function Today({
                   disabled={busy || index === order.length - 1}
                   onClick={() => {
                     const next = [...order];
-                    [next[index + 1], next[index]] = [next[index], next[index + 1]];
+                    [next[index + 1], next[index]] = [
+                      next[index],
+                      next[index + 1],
+                    ];
                     void saveLayout(next, hidden);
                   }}
                 >
@@ -499,9 +556,11 @@ export function Today({
         </section>
       )}
       <div className="today-modules">
-        {order.filter((id) => !hidden.includes(id)).map((id) => (
-          <div key={id}>{renderModule(id)}</div>
-        ))}
+        {order
+          .filter((id) => !hidden.includes(id))
+          .map((id) => (
+            <div key={id}>{renderModule(id)}</div>
+          ))}
       </div>
     </>
   );

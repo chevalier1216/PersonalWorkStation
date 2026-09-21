@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   supabase,
@@ -7,10 +7,31 @@ import {
   syncGoogleCalendar,
 } from "./api";
 import { Board } from "./Board";
+import { aiCommand, sendAIMessage, type AIOperations } from "./ai";
+
+const googleCalendarScopes = [
+  "openid",
+  "email",
+  "profile",
+  "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+  "https://www.googleapis.com/auth/calendar.events",
+].join(" ");
+
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+  const ai = useMemo<AIOperations>(
+    () => ({
+      load: () => aiCommand("load"),
+      createConversation: (title) =>
+        aiCommand("create_conversation", { title }),
+      send: sendAIMessage,
+      resolve: (action, confirm) =>
+        aiCommand("resolve_action", { id: action.id, confirm }),
+    }),
+    [],
+  );
   useEffect(() => {
     if (!supabase) return;
     supabase.auth
@@ -58,7 +79,7 @@ export function App() {
               provider: "google",
               options: {
                 redirectTo: window.location.origin + import.meta.env.BASE_URL,
-                scopes: "openid email profile https://www.googleapis.com/auth/calendar",
+                scopes: googleCalendarScopes,
                 queryParams: { prompt: "consent" },
               },
             });
@@ -80,16 +101,18 @@ export function App() {
             provider: "google",
             options: {
               redirectTo: window.location.origin + import.meta.env.BASE_URL,
-              scopes: "openid email profile https://www.googleapis.com/auth/calendar",
+              scopes: googleCalendarScopes,
               queryParams: { prompt: "consent" },
             },
           });
           if (error) throw error;
         },
-        sync: (snapshot) => syncGoogleCalendar(session.provider_token!, snapshot),
+        sync: (snapshot) =>
+          syncGoogleCalendar(session.provider_token!, snapshot),
         create: (task, calendarId) =>
           createTaskCalendarEvent(session.provider_token!, task, calendarId),
       }}
+      ai={ai}
       onSignOut={async () => {
         const { error } = await supabase!.auth.signOut();
         if (error) throw error;
