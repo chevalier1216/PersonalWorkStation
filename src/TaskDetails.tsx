@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   priorityLabels,
   rawDoingMinutes,
@@ -13,6 +13,11 @@ import {
   type Task,
 } from "./domain";
 import type { CalendarOperations } from "./Board";
+import {
+  emptySummaryState,
+  type AISummary,
+  type SummaryOperations,
+} from "./summary";
 
 type Run = (
   action: string,
@@ -37,6 +42,9 @@ export function TaskDetails({
   remove,
   calendar,
   createCalendarEvent,
+  summaries,
+  initialNoteId,
+  initialSummaryId,
 }: {
   task: Task;
   data: Snapshot;
@@ -47,6 +55,9 @@ export function TaskDetails({
   remove: () => Promise<void>;
   calendar?: CalendarOperations;
   createCalendarEvent: (task: Task, calendarId: string) => Promise<boolean>;
+  summaries?: SummaryOperations;
+  initialNoteId?: string;
+  initialSummaryId?: string;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
@@ -78,13 +89,18 @@ export function TaskDetails({
   const [checkTitle, setCheckTitle] = useState("");
   const [checkDue, setCheckDue] = useState("");
   const [note, setNote] = useState("");
+  const [summaryState, setSummaryState] = useState(emptySummaryState);
+  const [summaryBusy, setSummaryBusy] = useState(Boolean(summaries));
+  const [summaryError, setSummaryError] = useState("");
   const [relationType, setRelationType] =
     useState<RelationType>("prerequisite");
   const [relatedTask, setRelatedTask] = useState("");
   const calendarLink = data.task_calendar_links.find(
     (item) => item.task_id === task.id,
   );
-  const selectedCalendars = data.google_calendars.filter((item) => item.selected);
+  const selectedCalendars = data.google_calendars.filter(
+    (item) => item.selected,
+  );
   const [calendarId, setCalendarId] = useState(
     calendarLink?.calendar_id ?? selectedCalendars[0]?.calendar_id ?? "",
   );
@@ -95,6 +111,69 @@ export function TaskDetails({
   const taskName = (id: string) =>
     data.tasks.find((item) => item.id === id)?.title ?? "已移除的任務";
   const rawMinutes = rawDoingMinutes(data.history, task.id);
+  const taskSummaries = summaryState.summaries
+    .filter((item) => item.task_id === task.id)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+  useEffect(() => {
+    if (!summaries) {
+      setSummaryBusy(false);
+      return;
+    }
+    let cancelled = false;
+    setSummaryBusy(true);
+    summaries
+      .load()
+      .then((state) => {
+        if (!cancelled) setSummaryState(state);
+      })
+      .catch((reason) => {
+        if (!cancelled)
+          setSummaryError(
+            reason instanceof Error ? reason.message : String(reason),
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setSummaryBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [summaries]);
+
+  useEffect(() => {
+    const id = initialNoteId
+      ? `note-${initialNoteId}`
+      : initialSummaryId
+        ? `summary-${initialSummaryId}`
+        : "";
+    if (!id) return;
+    const timer = window.setTimeout(
+      () => document.getElementById(id)?.scrollIntoView({ block: "center" }),
+      0,
+    );
+    return () => window.clearTimeout(timer);
+  }, [initialNoteId, initialSummaryId, summaryState]);
+
+  function differenceList(label: string, values: string[]) {
+    if (!values.length) return null;
+    return (
+      <div className="summary-difference">
+        <strong>{label}</strong>
+        <ul>
+          {values.map((value) => (
+            <li key={value}>{value}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  function latestFor(summary: AISummary) {
+    return summaryState.summaries.find(
+      (item) => item.id === summary.latest_summary_id,
+    );
+  }
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -108,7 +187,9 @@ export function TaskDetails({
       deliverable_type: deliverableType || null,
       deliverable_value: deliverableValue || null,
       recurrence_type: recurrenceType || null,
-      recurrence_interval: recurrenceType ? Number(recurrenceInterval || 1) : null,
+      recurrence_interval: recurrenceType
+        ? Number(recurrenceInterval || 1)
+        : null,
       recurrence_unit: recurrenceType === "custom" ? recurrenceUnit : null,
     });
     if (!parsed.success) {
@@ -206,7 +287,9 @@ export function TaskDetails({
               <select
                 aria-label="自訂循環單位"
                 value={recurrenceUnit}
-                onChange={(e) => setRecurrenceUnit(e.target.value as RecurrenceUnit)}
+                onChange={(e) =>
+                  setRecurrenceUnit(e.target.value as RecurrenceUnit)
+                }
               >
                 <option value="day">天</option>
                 <option value="week">週</option>
@@ -457,7 +540,17 @@ export function TaskDetails({
             )?.summary ?? calendarLink.calendar_id}
             」
             {calendarLink.html_link && (
-              <> · <a href={calendarLink.html_link} target="_blank" rel="noreferrer">開啟事件</a></>
+              <>
+                {" "}
+                ·{" "}
+                <a
+                  href={calendarLink.html_link}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  開啟事件
+                </a>
+              </>
             )}
           </p>
         ) : calendarLink ? (
@@ -474,9 +567,13 @@ export function TaskDetails({
             type="button"
             disabled={busy || !calendar}
             onClick={() =>
-              calendar?.connect().catch((error) =>
-                setLocalError(error instanceof Error ? error.message : String(error)),
-              )
+              calendar
+                ?.connect()
+                .catch((error) =>
+                  setLocalError(
+                    error instanceof Error ? error.message : String(error),
+                  ),
+                )
             }
           >
             連結 Google Calendar
@@ -496,7 +593,9 @@ export function TaskDetails({
             </select>
             <button
               type="button"
-              disabled={busy || !calendarId || (!task.due_at && !task.start_date)}
+              disabled={
+                busy || !calendarId || (!task.due_at && !task.start_date)
+              }
               onClick={() => void createCalendarEvent(task, calendarId)}
             >
               {calendarLink?.sync_status === "failed"
@@ -538,12 +637,97 @@ export function TaskDetails({
         </form>
         <ol className="timeline">
           {notes.map((item) => (
-            <li key={item.id}>
+            <li
+              id={`note-${item.id}`}
+              className={initialNoteId === item.id ? "search-hit" : undefined}
+              key={item.id}
+            >
               <time>{new Date(item.created_at).toLocaleString("zh-TW")}</time>
               <p>{item.content}</p>
             </li>
           ))}
           {!notes.length && <li className="subtle">尚無工作紀錄</li>}
+        </ol>
+      </section>
+
+      <section className="detail-section full-width summary-section">
+        <div className="module-heading">
+          <div>
+            <h3>AI Summary</h3>
+            <p className="subtle">
+              來源 Task：{task.title}。Summary 獨立保存，不覆寫原 Task。
+            </p>
+          </div>
+          <button
+            type="button"
+            className="primary"
+            disabled={!summaries || summaryBusy}
+            onClick={async () => {
+              if (!summaries) return;
+              setSummaryBusy(true);
+              setSummaryError("");
+              try {
+                setSummaryState(await summaries.generate(task.id));
+              } catch (reason) {
+                setSummaryError(
+                  reason instanceof Error ? reason.message : String(reason),
+                );
+              } finally {
+                setSummaryBusy(false);
+              }
+            }}
+          >
+            {summaryBusy ? "整理中…" : "@AI 整理"}
+          </button>
+        </div>
+        {summaryError && (
+          <p className="error" role="alert">
+            {summaryError}
+          </p>
+        )}
+        <ol className="summary-timeline">
+          {taskSummaries.map((summary) => {
+            const latest = latestFor(summary);
+            return (
+              <li
+                id={`summary-${summary.id}`}
+                className={
+                  initialSummaryId === summary.id
+                    ? "summary-card search-hit"
+                    : "summary-card"
+                }
+                key={summary.id}
+              >
+                {latest && (
+                  <button
+                    className="latest-summary-link"
+                    onClick={() =>
+                      document
+                        .getElementById(`summary-${latest.id}`)
+                        ?.scrollIntoView({ block: "center" })
+                    }
+                  >
+                    最新版本：{latest.version_label} · {latest.title}
+                  </button>
+                )}
+                <div className="summary-heading">
+                  <strong>{summary.title}</strong>
+                  <span>{summary.version_label}</span>
+                </div>
+                {differenceList("與上一版不同的決策", summary.decisions)}
+                {differenceList("已完成", summary.completed)}
+                {differenceList("已取消", summary.cancelled)}
+                {differenceList("已取代", summary.superseded)}
+                <p>{summary.content}</p>
+                <time>
+                  {new Date(summary.created_at).toLocaleString("zh-TW")}
+                </time>
+              </li>
+            );
+          })}
+          {!summaryBusy && !taskSummaries.length && (
+            <li className="subtle">尚無 Summary 版本</li>
+          )}
         </ol>
       </section>
 

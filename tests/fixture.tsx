@@ -10,7 +10,10 @@ import m2ConstraintsMigration from "../supabase/migrations/202609200003_m2_const
 import calendarMigration from "../supabase/migrations/202609200004_google_calendar.sql?raw";
 import aiMigration from "../supabase/migrations/202609200005_ai_chat.sql?raw";
 import taskDetailsCommandFix from "../supabase/migrations/202609210001_restore_task_details_command.sql?raw";
+import m5Migration from "../supabase/migrations/202609210002_ai_summary_search.sql?raw";
 import type { AIOperations, AIState } from "../src/ai";
+import type { SummaryOperations, SummaryState } from "../src/summary";
+import type { SearchField, SearchResult } from "../src/search";
 import "../src/style.css";
 const db = new PGlite("idb://m4-browser-tests-v1");
 await db.waitReady;
@@ -49,6 +52,10 @@ const hasM3CommandCore = await db.query<{ exists: boolean }>(
   "select exists(select 1 from pg_proc where proname='workspace_command_core_m3')",
 );
 if (!hasM3CommandCore.rows[0].exists) await db.exec(taskDetailsCommandFix);
+const hasM5 = await db.query<{ exists: boolean }>(
+  "select exists(select 1 from pg_tables where schemaname='public' and tablename='ai_summaries')",
+);
+if (!hasM5.rows[0].exists) await db.exec(m5Migration);
 const execute: Execute = async (action, payload = {}) => {
   if (new URLSearchParams(location.search).get("fail") === action)
     throw new Error("測試用連線中斷");
@@ -159,6 +166,61 @@ const ai: AIOperations = {
     });
   },
 };
+const summaryCommand = async (
+  action: string,
+  payload: Record<string, unknown> = {},
+) => {
+  const state = await db.transaction(async (tx) => {
+    await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+      user,
+    ]);
+    await tx.exec("set local role authenticated");
+    const result = await tx.query<{ result: SummaryState }>(
+      "select summary_command($1,$2::jsonb) as result",
+      [action, JSON.stringify(payload)],
+    );
+    return result.rows[0].result;
+  });
+  await db.syncToFs();
+  return state;
+};
+const summaries: SummaryOperations = {
+  load: () => summaryCommand("load"),
+  generate: async (taskId) => {
+    if (new URLSearchParams(location.search).get("summaryFail") === "1") {
+      await summaryCommand("record_failure", {
+        task_id: taskId,
+        message: "測試用 AI Summary 中斷",
+      });
+      throw new Error("測試用 AI Summary 中斷");
+    }
+    const current = await summaryCommand("load");
+    const previous = current.summaries.find((item) => item.task_id === taskId);
+    return summaryCommand("create", {
+      task_id: taskId,
+      title: previous ? "發佈準備與風險變更" : "發佈準備與驗證結果",
+      decisions: previous ? ["改採分階段發布"] : ["先完成 production smoke"],
+      completed: ["驗證 Task persistence"],
+      cancelled: [],
+      superseded: previous ? ["一次完成全部發布"] : [],
+      content: previous
+        ? "已完成持久化驗證，接下來依風險分階段發布。"
+        : "已完成 Task persistence 驗證，待執行 production smoke。",
+    });
+  },
+};
+const search = async (query: string, field: SearchField) =>
+  db.transaction(async (tx) => {
+    await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+      user,
+    ]);
+    await tx.exec("set local role authenticated");
+    const result = await tx.query<{ result: SearchResult[] }>(
+      "select history_search($1,$2) as result",
+      [query, field],
+    );
+    return result.rows[0].result;
+  });
 createRoot(document.getElementById("root")!).render(
   <Board
     execute={execute}
@@ -220,5 +282,7 @@ createRoot(document.getElementById("root")!).render(
             }),
     }}
     ai={ai}
+    summaries={summaries}
+    search={{ search }}
   />,
 );

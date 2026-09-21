@@ -8,6 +8,8 @@ import {
 } from "./api";
 import { Board } from "./Board";
 import { aiCommand, sendAIMessage, type AIOperations } from "./ai";
+import { generateAISummary, summaryCommand } from "./summary";
+import { historySearch } from "./search";
 
 const googleCalendarScopes = [
   "openid",
@@ -113,6 +115,11 @@ export function App() {
           createTaskCalendarEvent(session.provider_token!, task, calendarId),
       }}
       ai={ai}
+      summaries={{
+        load: () => summaryCommand("load"),
+        generate: generateAISummary,
+      }}
+      search={{ search: historySearch }}
       onSignOut={async () => {
         const { error } = await supabase!.auth.signOut();
         if (error) throw error;

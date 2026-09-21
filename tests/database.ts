@@ -2,6 +2,8 @@ import { PGlite } from "@electric-sql/pglite";
 import { readFile } from "node:fs/promises";
 import type { Snapshot } from "../src/domain";
 import type { AIState } from "../src/ai";
+import type { SummaryState } from "../src/summary";
+import type { SearchField, SearchResult } from "../src/search";
 export const alice = "00000000-0000-4000-8000-000000000001";
 export const bob = "00000000-0000-4000-8000-000000000002";
 export async function database() {
@@ -70,6 +72,15 @@ export async function database() {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      new URL(
+        "../supabase/migrations/202609210002_ai_summary_search.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await db.query("insert into public.allowed_users values($1)", [alice]);
   async function run(
     action: string,
@@ -105,5 +116,35 @@ export async function database() {
       return result.rows[0].result;
     });
   }
-  return { db, run, runAI };
+  async function runSummary(
+    action: string,
+    payload: Record<string, unknown> = {},
+    user = alice,
+  ) {
+    return db.transaction(async (tx) => {
+      await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+        user,
+      ]);
+      await tx.exec("set local role authenticated");
+      const result = await tx.query<{ result: SummaryState }>(
+        "select public.summary_command($1,$2::jsonb) as result",
+        [action, JSON.stringify(payload)],
+      );
+      return result.rows[0].result;
+    });
+  }
+  async function search(query: string, field: SearchField, user = alice) {
+    return db.transaction(async (tx) => {
+      await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+        user,
+      ]);
+      await tx.exec("set local role authenticated");
+      const result = await tx.query<{ result: SearchResult[] }>(
+        "select public.history_search($1,$2) as result",
+        [query, field],
+      );
+      return result.rows[0].result;
+    });
+  }
+  return { db, run, runAI, runSummary, search };
 }

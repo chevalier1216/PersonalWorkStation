@@ -30,6 +30,9 @@ import { TaskDetails } from "./TaskDetails";
 import { Today } from "./Today";
 import { AIChat } from "./AIChat";
 import type { AIOperations, AIPendingAction } from "./ai";
+import type { SummaryOperations } from "./summary";
+import type { SearchOperations } from "./search";
+import { SearchView } from "./SearchView";
 export type Execute = (
   action: string,
   payload?: Record<string, unknown>,
@@ -176,11 +179,15 @@ export function Board({
   onSignOut,
   calendar,
   ai,
+  summaries,
+  search,
 }: {
   execute: Execute;
   onSignOut?: () => Promise<void>;
   calendar?: CalendarOperations;
   ai?: AIOperations;
+  summaries?: SummaryOperations;
+  search?: SearchOperations;
 }) {
   const [data, setData] = useState<Snapshot>({
     columns: [],
@@ -212,7 +219,12 @@ export function Board({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [quick, setQuick] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTarget, setEditingTarget] = useState<{
+    taskId: string;
+    noteId?: string;
+    summaryId?: string;
+  } | null>(null);
+  const editingId = editingTarget?.taskId ?? null;
   const editing = data.tasks.find((task) => task.id === editingId) ?? null;
   const [pendingMove, setPendingMove] = useState<{
     task: Task;
@@ -221,7 +233,12 @@ export function Board({
   } | null>(null);
   const [managing, setManaging] = useState<Column | null>(null);
   const [addColumn, setAddColumn] = useState(false);
-  const [view, setView] = useState<"today" | "board" | "ai">("today");
+  const [view, setView] = useState<"today" | "board" | "ai" | "search">(
+    "today",
+  );
+  const [aiConversationId, setAIConversationId] = useState<string | null>(null);
+  const openTask = (taskId: string, noteId?: string, summaryId?: string) =>
+    setEditingTarget({ taskId, noteId, summaryId });
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor),
@@ -358,6 +375,12 @@ export function Board({
         >
           AI 對話
         </button>
+        <button
+          aria-current={view === "search" ? "page" : undefined}
+          onClick={() => setView("search")}
+        >
+          歷史搜尋
+        </button>
       </nav>
       {view === "today" ? (
         <main>
@@ -377,7 +400,7 @@ export function Board({
           <Today
             data={data}
             busy={busy}
-            openTask={setEditingId}
+            openTask={(id) => openTask(id)}
             run={run}
             calendar={calendar}
             syncCalendar={() =>
@@ -399,6 +422,18 @@ export function Board({
             resolveAction={resolveAIAction}
             onWorkspaceChanged={async () => {
               await run("load");
+            }}
+            initialConversationId={aiConversationId}
+          />
+        </main>
+      ) : view === "search" ? (
+        <main>
+          <SearchView
+            operations={search}
+            openTask={openTask}
+            openConversation={(id) => {
+              setAIConversationId(id);
+              setView("ai");
             }}
           />
         </main>
@@ -519,7 +554,7 @@ export function Board({
                           key={task.id}
                           task={task}
                           busy={busy}
-                          edit={() => setEditingId(task.id)}
+                          edit={() => openTask(task.id)}
                           columns={data.columns}
                           index={index}
                           count={tasks.length}
@@ -577,14 +612,14 @@ export function Board({
         <Modal
           title="任務詳細資料"
           busy={busy}
-          close={() => setEditingId(null)}
+          close={() => setEditingTarget(null)}
         >
           <TaskDetails
             task={editing}
             data={data}
             busy={busy}
             remoteError={error}
-            close={() => setEditingId(null)}
+            close={() => setEditingTarget(null)}
             run={run}
             calendar={calendar}
             createCalendarEvent={(task, calendarId) =>
@@ -592,9 +627,12 @@ export function Board({
                 ? runCalendar(() => calendar.create(task, calendarId))
                 : Promise.resolve(false)
             }
+            summaries={summaries}
+            initialNoteId={editingTarget?.noteId}
+            initialSummaryId={editingTarget?.summaryId}
             remove={async () => {
               if (await run("delete_task", { id: editing.id }))
-                setEditingId(null);
+                setEditingTarget(null);
             }}
           />
         </Modal>

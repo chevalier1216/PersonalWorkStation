@@ -52,6 +52,7 @@ export function AIChat({
   compact = false,
   onWorkspaceChanged,
   resolveAction,
+  initialConversationId,
 }: {
   operations?: AIOperations;
   compact?: boolean;
@@ -60,6 +61,7 @@ export function AIChat({
     action: AIPendingAction,
     confirm: boolean,
   ) => Promise<AIState>;
+  initialConversationId?: string | null;
 }) {
   const [state, setState] = useState<AIState>(emptyAIState);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -95,6 +97,14 @@ export function AIChat({
       cancelled = true;
     };
   }, [operations]);
+
+  useEffect(() => {
+    if (
+      initialConversationId &&
+      state.conversations.some((item) => item.id === initialConversationId)
+    )
+      setConversationId(initialConversationId);
+  }, [initialConversationId, state.conversations]);
 
   const active =
     state.conversations.find((item) => item.id === conversationId) ?? null;
