@@ -37,17 +37,17 @@ export async function summaryCommand(
   return normalizeSummaryState(data as Partial<SummaryState>);
 }
 
-export async function generateAISummary(taskId: string): Promise<SummaryState> {
-  if (!supabase) throw new Error("尚未設定資料連線");
-  const { data, error } = await supabase.functions.invoke("ai-summary", {
-    body: { task_id: taskId },
-  });
-  if (error) throw new Error(error.message);
-  if (data?.error) throw new Error(String(data.error));
-  return normalizeSummaryState(data as Partial<SummaryState>);
-}
-
 export type SummaryOperations = {
   load: () => Promise<SummaryState>;
-  generate: (taskId: string) => Promise<SummaryState>;
+  create: (
+    taskId: string,
+    draft: {
+      title: string;
+      decisions: string[];
+      completed: string[];
+      cancelled: string[];
+      superseded: string[];
+      content: string;
+    },
+  ) => Promise<SummaryState>;
 };

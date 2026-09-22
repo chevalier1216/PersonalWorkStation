@@ -80,7 +80,7 @@ create function public.history_search(search_text text,search_field text default
 language sql stable security definer set search_path=public,pg_temp as $$
 with params as (
   select '%'||lower(trim(coalesce(search_text,'')))||'%' pattern,
-    case when search_field in ('all','title','description','notes','deliverable','tags','priority','status','date','calendar','chat','summary') then search_field else 'all' end field
+    case when search_field in ('all','title','description','notes','deliverable','tags','priority','status','date','calendar','summary') then search_field else 'all' end field
 ), sources as (
   select 'task'::text result_type,'title'::text matched_field,t.id::text result_id,t.title result_title,t.title snippet,t.id task_id,null::uuid note_id,null::uuid conversation_id,null::uuid summary_id,t.created_at occurred_at
   from public.tasks t,params p where t.owner_id=auth.uid() and p.field in ('all','title') and lower(t.title) like p.pattern
@@ -92,60 +92,10 @@ with params as (
   union all select 'task','status',t.id::text,t.title,c.title||' / '||c.kind,t.id,null,null,null,t.created_at from public.tasks t join public.board_columns c on c.id=t.column_id and c.owner_id=t.owner_id,params p where t.owner_id=auth.uid() and p.field in ('all','status') and lower(c.title||' '||c.kind) like p.pattern
   union all select 'task','date',t.id::text,t.title,concat_ws(' · ',t.start_date::text,t.due_at::text,t.completed_at::text),t.id,null,null,null,t.created_at from public.tasks t,params p where t.owner_id=auth.uid() and p.field in ('all','date') and lower(concat_ws(' ',t.start_date::text,t.due_at::text,t.completed_at::text)) like p.pattern
   union all select 'task','calendar',t.id::text,t.title,coalesce(c.summary,l.calendar_id)||case when l.html_link<>'' then ' · '||l.html_link else '' end,t.id,null,null,null,l.created_at from public.task_calendar_links l join public.tasks t on t.id=l.task_id and t.owner_id=l.owner_id left join public.google_calendars c on c.owner_id=l.owner_id and c.calendar_id=l.calendar_id,params p where l.owner_id=auth.uid() and p.field in ('all','calendar') and lower(coalesce(c.summary,'')||' '||l.calendar_id||' '||coalesce(l.html_link,'')) like p.pattern
-  union all select 'chat','chat',m.id::text,c.title,left(m.content,500),null,null,c.id,null,m.created_at from public.ai_messages m join public.ai_conversations c on c.id=m.conversation_id and c.owner_id=m.owner_id,params p where m.owner_id=auth.uid() and p.field in ('all','chat') and lower(c.title||' '||m.content) like p.pattern
   union all select 'summary','summary',s.id::text,s.title,left(s.version_label||' · '||s.content,500),s.task_id,null,null,s.id,s.created_at from public.ai_summaries s,params p where s.owner_id=auth.uid() and p.field in ('all','summary') and lower(s.title||' '||s.content||' '||array_to_string(s.decisions,' ')||' '||array_to_string(s.completed,' ')) like p.pattern
 )
 select coalesce(jsonb_agg(to_jsonb(s) order by occurred_at desc),'[]'::jsonb) from (select * from sources order by occurred_at desc limit 100) s
 $$;
 
-create or replace function public.ai_relevant_context(search_text text) returns jsonb
-language sql stable security definer set search_path=public,pg_temp as $$
-  with terms as (
-    select lower(term) term from regexp_split_to_table(coalesce(search_text,''),'\s+') term where length(term)>=2 limit 12
-  ), relevant_tasks as (
-    select t.* from public.tasks t
-    where t.owner_id=auth.uid() and (
-      not exists(select 1 from terms)
-      or exists(select 1 from terms where position(term in lower(t.title||' '||t.description))>0)
-      or exists(select 1 from public.task_notes n,terms where n.owner_id=t.owner_id and n.task_id=t.id and position(term in lower(n.content))>0)
-    )
-    order by t.completed_at nulls first,t.due_at nulls last,t.created_at desc limit 20
-  ), explicit_history as (
-    select lower(coalesce(search_text,'')) ~ '(找.*以前|以前.*談|歷史.*對話|過去.*對話|曾經.*談)' allowed
-  )
-  select jsonb_build_object(
-    'tasks',coalesce((select jsonb_agg(jsonb_build_object('id',id,'title',title,'description',description,'priority',priority,
-      'due_at',due_at,'start_date',start_date,'completed_at',completed_at)) from relevant_tasks),'[]'::jsonb),
-    'notes',coalesce((select jsonb_agg(item order by created_at desc) from (
-      select jsonb_build_object('task_id',n.task_id,'content',n.content,'created_at',n.created_at) item,n.created_at
-      from public.task_notes n where n.owner_id=auth.uid() and n.task_id in (select id from relevant_tasks)
-      order by n.created_at desc limit 30
-    ) limited_notes),'[]'::jsonb),
-    'calendar',coalesce((select jsonb_agg(item order by event_time) from (
-      select jsonb_build_object('calendar_id',e.calendar_id,'event_id',e.event_id,'title',e.title,
-        'start_at',e.start_at,'start_date',e.start_date,'all_day',e.all_day) item,
-        coalesce(e.start_at,e.start_date::timestamptz) event_time
-      from public.google_calendar_events e
-      where e.owner_id=auth.uid() and coalesce(e.start_at,e.start_date::timestamptz)>=now()-interval '1 day'
-      order by event_time limit 30
-    ) limited_calendar),'[]'::jsonb),
-    'calendars',coalesce((select jsonb_agg(jsonb_build_object('calendar_id',c.calendar_id,'summary',c.summary,'selected',c.selected)
-      order by c.is_primary desc,c.summary) from public.google_calendars c where c.owner_id=auth.uid()),'[]'::jsonb),
-    'summaries',coalesce((select jsonb_agg(item order by created_at desc) from (
-      select jsonb_build_object('id',s.id,'task_id',s.task_id,'version_label',s.version_label,'title',s.title,'content',s.content) item,s.created_at
-      from public.ai_summaries s,terms where s.owner_id=auth.uid()
-        and position(terms.term in lower(s.title||' '||s.content))>0
-      group by s.id order by s.created_at desc limit 10
-    ) limited_summaries),'[]'::jsonb),
-    'historical_chat',case when (select allowed from explicit_history) then
-      coalesce((select jsonb_agg(item order by created_at desc) from (
-        select jsonb_build_object('conversation_id',m.conversation_id,'title',c.title,'role',m.role,'content',m.content,'created_at',m.created_at) item,m.created_at
-        from public.ai_messages m join public.ai_conversations c on c.id=m.conversation_id and c.owner_id=m.owner_id,terms
-        where m.owner_id=auth.uid() and position(terms.term in lower(c.title||' '||m.content))>0
-        group by m.id,c.title order by m.created_at desc limit 20
-      ) limited_chat),'[]'::jsonb) else '[]'::jsonb end
-  )
-$$;
-
-revoke all on function public.summary_state(),public.summary_context(uuid),public.summary_command(text,jsonb),public.history_search(text,text),public.ai_relevant_context(text) from public;
+revoke all on function public.summary_state(),public.summary_context(uuid),public.summary_command(text,jsonb),public.history_search(text,text) from public;
 grant execute on function public.summary_context(uuid),public.summary_command(text,jsonb),public.history_search(text,text) to authenticated;

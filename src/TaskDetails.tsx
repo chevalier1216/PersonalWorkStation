@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   priorityLabels,
   rawDoingMinutes,
@@ -23,6 +23,11 @@ import {
   type Attachment,
   type AttachmentOperations,
 } from "./attachments";
+import {
+  buildChatGPTUrl,
+  buildSummaryPrompt,
+  copyChatGPTPrompt,
+} from "./chatgpt";
 
 type Run = (
   action: string,
@@ -35,6 +40,13 @@ function localDateTime(value: string | null) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 16);
+}
+
+function summaryLines(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((item) => item.trim().replace(/^[-*]\s*/, ""))
+    .filter(Boolean);
 }
 
 export function TaskDetails({
@@ -99,6 +111,13 @@ export function TaskDetails({
   const [summaryState, setSummaryState] = useState(emptySummaryState);
   const [summaryBusy, setSummaryBusy] = useState(Boolean(summaries));
   const [summaryError, setSummaryError] = useState("");
+  const [summaryTitle, setSummaryTitle] = useState("");
+  const [summaryContent, setSummaryContent] = useState("");
+  const [summaryDecisions, setSummaryDecisions] = useState("");
+  const [summaryCompleted, setSummaryCompleted] = useState("");
+  const [summaryCancelled, setSummaryCancelled] = useState("");
+  const [summarySuperseded, setSummarySuperseded] = useState("");
+  const [summaryPromptCopied, setSummaryPromptCopied] = useState(false);
   const [attachmentState, setAttachmentState] = useState(emptyAttachmentState);
   const [attachmentBusy, setAttachmentBusy] = useState(Boolean(attachments));
   const [attachmentError, setAttachmentError] = useState("");
@@ -126,6 +145,21 @@ export function TaskDetails({
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   const taskAttachments = attachmentState.attachments.filter(
     (item) => item.task_id === task.id,
+  );
+  const summaryPrompt = useMemo(
+    () =>
+      buildSummaryPrompt({
+        task,
+        notes,
+        checklist,
+        history: data.history.filter((item) => item.task_id === task.id),
+        previous_summary: taskSummaries[0] ?? null,
+      }),
+    [task, notes, checklist, data.history, taskSummaries],
+  );
+  const summaryHandoffUrl = useMemo(
+    () => buildChatGPTUrl(summaryPrompt),
+    [summaryPrompt],
   );
 
   useEffect(() => {
@@ -836,33 +870,125 @@ export function TaskDetails({
               來源 Task：{task.title}。Summary 獨立保存，不覆寫原 Task。
             </p>
           </div>
-          <button
-            type="button"
-            className="primary"
-            disabled={!summaries || summaryBusy}
-            onClick={async () => {
-              if (!summaries) return;
-              setSummaryBusy(true);
-              setSummaryError("");
-              try {
-                setSummaryState(await summaries.generate(task.id));
-              } catch (reason) {
-                setSummaryError(
-                  reason instanceof Error ? reason.message : String(reason),
-                );
-              } finally {
-                setSummaryBusy(false);
-              }
+          <a
+            className="primary chatgpt-link"
+            href={summaryHandoffUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => {
+              void copyChatGPTPrompt(summaryPrompt).then(
+                setSummaryPromptCopied,
+              );
             }}
           >
-            {summaryBusy ? "整理中…" : "@AI 整理"}
-          </button>
+            在 ChatGPT 整理
+          </a>
         </div>
+        <p className="subtle">
+          會開啟一般對話並複製目前 Task context。請確認「對話／高」後送出，再將結果貼回下方保存。
+        </p>
+        {summaryPromptCopied && (
+          <p className="success" role="status">Summary 提示已複製。</p>
+        )}
         {summaryError && (
           <p className="error" role="alert">
             {summaryError}
           </p>
         )}
+        <form
+          className="summary-import"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (!summaries || !summaryTitle.trim() || !summaryContent.trim())
+              return;
+            setSummaryBusy(true);
+            setSummaryError("");
+            try {
+              setSummaryState(
+                await summaries.create(task.id, {
+                  title: summaryTitle.trim(),
+                  decisions: summaryLines(summaryDecisions),
+                  completed: summaryLines(summaryCompleted),
+                  cancelled: summaryLines(summaryCancelled),
+                  superseded: summaryLines(summarySuperseded),
+                  content: summaryContent.trim(),
+                }),
+              );
+              setSummaryTitle("");
+              setSummaryContent("");
+              setSummaryDecisions("");
+              setSummaryCompleted("");
+              setSummaryCancelled("");
+              setSummarySuperseded("");
+            } catch (reason) {
+              setSummaryError(
+                reason instanceof Error ? reason.message : String(reason),
+              );
+            } finally {
+              setSummaryBusy(false);
+            }
+          }}
+        >
+          <div className="field-row">
+            <label>
+              Summary 標題
+              <input
+                value={summaryTitle}
+                maxLength={300}
+                onChange={(event) => setSummaryTitle(event.target.value)}
+              />
+            </label>
+            <label>
+              已完成（每行一項）
+              <textarea
+                value={summaryCompleted}
+                onChange={(event) => setSummaryCompleted(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="field-row">
+            <label>
+              與上一版不同的決策（每行一項）
+              <textarea
+                value={summaryDecisions}
+                onChange={(event) => setSummaryDecisions(event.target.value)}
+              />
+            </label>
+            <label>
+              已取消（每行一項）
+              <textarea
+                value={summaryCancelled}
+                onChange={(event) => setSummaryCancelled(event.target.value)}
+              />
+            </label>
+            <label>
+              已取代（每行一項）
+              <textarea
+                value={summarySuperseded}
+                onChange={(event) => setSummarySuperseded(event.target.value)}
+              />
+            </label>
+          </div>
+          <label>
+            完整摘要
+            <textarea
+              value={summaryContent}
+              maxLength={50000}
+              onChange={(event) => setSummaryContent(event.target.value)}
+            />
+          </label>
+          <button
+            className="primary"
+            disabled={
+              summaryBusy ||
+              !summaries ||
+              !summaryTitle.trim() ||
+              !summaryContent.trim()
+            }
+          >
+            {summaryBusy ? "保存中…" : "保存 Summary Card"}
+          </button>
+        </form>
         <ol className="summary-timeline">
           {taskSummaries.map((summary) => {
             const latest = latestFor(summary);

@@ -11,13 +11,13 @@
 - Edge Functions 目前只有 `refresh-holidays`。
 - Edge Function custom secrets 目前為空；`refresh-holidays` 缺少 `HOLIDAY_SYNC_SECRET`，所以每週同步尚未啟用，不能把「已部署」視為自動維護完成。
 - 2026-09-22 以 production catalog 唯讀查詢確認，下列資源全部不存在：
-  - Tables：`ai_conversations`、`ai_messages`、`ai_pending_actions`、`ai_summaries`、`task_attachments`、`capacity_snapshots`、`metadata_backups`。
-  - RPC：`ai_command`、`summary_command`、`history_search`、`attachment_command`。
+  - Tables：`ai_summaries`、`task_attachments`、`capacity_snapshots`、`metadata_backups`。
+  - RPC：`summary_command`、`history_search`、`attachment_command`。
   - Storage bucket：`pws-attachments`。
 - 同次 migration preflight 已確認 `is_allowed()`、`tasks`、`task_notes`、`notifications`、`google_calendar_events`、`storage.objects`、8 個必要 Task detail 欄位、`workspace_command(text,jsonb)` 與 `workspace_command_core_m3(text,jsonb)` 全部存在；M4–M6 migration 的既有依賴已就緒。
 - `storage.objects` 目前沒有 `pws_attachment_insert`、`pws_attachment_select` 或 `pws_attachment_delete` 同名 policy，建立 private bucket 與三項 owner-path policy 不會遇到名稱衝突。
 - Git branch `feat/v1-specs-m1` 的 M1–M7 本機實作已推送至 `b9d623f50687b9283f9717dc9e19b2b168601961`；該 SHA 的 GitHub Actions、unit/integration、desktop/mobile Playwright 與 build 均通過。
-- Production rollout 測試已重現「M3 command wrapper 已存在、M4 tables 尚未建立」的實際基線；M4–M6 schema 在單一 transaction 內可完整套用，且注入失敗時全部回滾。完整 unit/integration 為 11 files / 37 tests passed。
+- Production rollout 測試已重現 M3 command wrapper 已存在的實際基線；M5–M6 schema 可在單一 transaction 內完整套用，且注入失敗時全部回滾。修正後測試數以最新 CI 為準。
 - GitHub Actions 目前沒有 repository variables 或 repository secrets；`holiday-sync.yml` 與 Pages workflow 所需設定都尚未加入。
 - GitHub Pages 目前為 disabled，publishing source 仍是 `Deploy from a branch`／`None`。Pages workflow 已存在，但尚未切換到 GitHub Actions、合併 `main` 或發布正式 URL。
 - Supabase Auth 的 Site URL 仍為 `http://localhost:3000`，Redirect URLs 為空；正式 Pages URL 尚未加入 allowlist。
@@ -44,13 +44,12 @@
 
 依序套用，任一步失敗即停止，不跳過：
 
-1. `202609200005_ai_chat.sql`
-2. `202609210001_restore_task_details_command.sql`
-3. `202609210002_ai_summary_search.sql`
-4. `202609210003_attachments_maintenance.sql`
-5. `202609210004_attachment_storage_bucket.sql`
+1. `202609210001_restore_task_details_command.sql`
+2. `202609210002_ai_summary_search.sql`
+3. `202609210003_attachments_maintenance.sql`
+4. `202609210004_attachment_storage_bucket.sql`
 
-套用後執行 `supabase/verification/m4_m6_postflight.sql`；所有 row 必須為 `passed=true`，以確認 7 tables、4 RPC、RLS、anon revoke、private bucket 與三項 Storage policy。再以指定 Google 帳號檢查 authenticated owner 可操作自己的資料，其他 user 不可讀寫。
+套用後執行 `supabase/verification/m4_m6_postflight.sql`；所有 row 必須為 `passed=true`，以確認 4 tables、3 RPC、RLS、anon revoke、private bucket 與三項 Storage policy。再以指定 Google 帳號檢查 authenticated owner 可操作自己的資料，其他 user 不可讀寫。
 
 ### Phase B — 免費外部整合
 
@@ -65,7 +64,7 @@
 
 ### Phase C — ChatGPT 一般對話 browser handoff
 
-1. 移除舊 `ai-chat`、`ai-summary` API flow 與付費 API request contract。
+1. [本機完成] 移除舊 `ai-chat`、`ai-summary` API flow、Chat persistence migration 與付費 API request contract。
 2. 驗證所有 AI 入口只開啟 ChatGPT 一般「對話」，且提示已預填。
 3. 以指定帳號確認顯示 High；不得進入 Work，也不得自動送出。
 4. 驗證 Task 建議必須回到工作台確認後才改資料。

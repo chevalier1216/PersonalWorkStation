@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { alice, bob, database } from "./database";
 
-describe("M5 AI Summary and history search", () => {
+describe("M5 Summary and workspace history search", () => {
   let ctx: Awaited<ReturnType<typeof database>>;
   let taskId = "";
 
@@ -31,12 +31,6 @@ describe("M5 AI Summary and history search", () => {
     await ctx.run("add_note", {
       task_id: taskId,
       content: "人工驗收發現 production refresh 正常",
-    });
-    let ai = await ctx.runAI("create_conversation", { title: "M5 搜尋討論" });
-    await ctx.runAI("append_message", {
-      conversation_id: ai.conversations[0].id,
-      role: "user",
-      content: "找出 production refresh 的討論",
     });
   }, 30000);
 
@@ -74,7 +68,7 @@ describe("M5 AI Summary and history search", () => {
     expect(old.content).toBe("已確認 Task persistence。");
   });
 
-  it("searches Notes, selected Task fields, chat and summaries with source links", async () => {
+  it("searches Notes, selected Task fields and summaries with source links", async () => {
     const notes = await ctx.search("production refresh", "notes");
     expect(notes[0]).toMatchObject({ result_type: "note", task_id: taskId });
     expect(notes[0].note_id).toBeTruthy();
@@ -86,26 +80,10 @@ describe("M5 AI Summary and history search", () => {
       task_id: taskId,
     });
     expect((await ctx.search("Release", "tags"))[0].task_id).toBe(taskId);
-    expect((await ctx.search("production refresh", "chat"))[0]).toMatchObject({
-      result_type: "chat",
-    });
     expect((await ctx.search("分階段發布", "summary"))[0]).toMatchObject({
       result_type: "summary",
       task_id: taskId,
     });
-  });
-
-  it("adds relevant Summaries but retrieves old chat only on an explicit request", async () => {
-    const ordinary = (await ctx.runAI("context", {
-      query: "production refresh",
-    })) as unknown as { summaries: unknown[]; historical_chat: unknown[] };
-    expect(ordinary.summaries.length).toBeGreaterThan(0);
-    expect(ordinary.historical_chat).toEqual([]);
-
-    const explicit = (await ctx.runAI("context", {
-      query: "找我以前談過 production refresh 的內容",
-    })) as unknown as { historical_chat: unknown[] };
-    expect(explicit.historical_chat.length).toBeGreaterThan(0);
   });
 
   it("keeps Summary and search private to the allowed owner", async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   supabase,
@@ -7,8 +7,7 @@ import {
   syncGoogleCalendar,
 } from "./api";
 import { Board } from "./Board";
-import { aiCommand, sendAIMessage, type AIOperations } from "./ai";
-import { generateAISummary, summaryCommand } from "./summary";
+import { summaryCommand } from "./summary";
 import { historySearch } from "./search";
 import {
   archiveAttachment,
@@ -33,17 +32,6 @@ export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
-  const ai = useMemo<AIOperations>(
-    () => ({
-      load: () => aiCommand("load"),
-      createConversation: (title) =>
-        aiCommand("create_conversation", { title }),
-      send: sendAIMessage,
-      resolve: (action, confirm) =>
-        aiCommand("resolve_action", { id: action.id, confirm }),
-    }),
-    [],
-  );
   useEffect(() => {
     if (!session?.provider_token) return;
     let cancelled = false;
@@ -142,10 +130,10 @@ export function App() {
         create: (task, calendarId) =>
           createTaskCalendarEvent(session.provider_token!, task, calendarId),
       }}
-      ai={ai}
       summaries={{
         load: () => summaryCommand("load"),
-        generate: generateAISummary,
+        create: (taskId, draft) =>
+          summaryCommand("create", { task_id: taskId, ...draft }),
       }}
       search={{ search: historySearch }}
       attachments={{

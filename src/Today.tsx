@@ -8,7 +8,6 @@ import {
 } from "./domain";
 import type { CalendarOperations } from "./Board";
 import { AIChat } from "./AIChat";
-import type { AIOperations, AIPendingAction, AIState } from "./ai";
 
 type Run = (
   action: string,
@@ -258,9 +257,6 @@ export function Today({
   run,
   calendar,
   syncCalendar,
-  ai,
-  resolveAIAction,
-  refreshWorkspace,
 }: {
   data: Snapshot;
   busy: boolean;
@@ -268,12 +264,6 @@ export function Today({
   run: Run;
   calendar?: CalendarOperations;
   syncCalendar: () => Promise<boolean>;
-  ai?: AIOperations;
-  resolveAIAction?: (
-    action: AIPendingAction,
-    confirm: boolean,
-  ) => Promise<AIState>;
-  refreshWorkspace: () => Promise<void>;
 }) {
   const [editingLayout, setEditingLayout] = useState(false);
   const [editingCalendars, setEditingCalendars] = useState(false);
@@ -452,14 +442,7 @@ export function Today({
     if (id === "notifications")
       return <Notifications items={data.notifications} run={run} />;
     if (id === "ai_chat")
-      return (
-        <AIChat
-          compact
-          operations={ai}
-          resolveAction={resolveAIAction}
-          onWorkspaceChanged={refreshWorkspace}
-        />
-      );
+      return <AIChat compact />;
     return (
       <section className="today-module" aria-label="假日提醒">
         <div className="module-heading">

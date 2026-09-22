@@ -11,12 +11,11 @@ export type SearchField =
   | "status"
   | "date"
   | "calendar"
-  | "chat"
   | "summary"
   | "attachments";
 
 export type SearchResult = {
-  result_type: "task" | "note" | "chat" | "summary" | "attachment";
+  result_type: "task" | "note" | "summary" | "attachment";
   matched_field: SearchField;
   result_id: string;
   result_title: string;
@@ -40,7 +39,6 @@ export const searchFieldLabels: Record<SearchField, string> = {
   status: "狀態",
   date: "日期",
   calendar: "Calendar 關聯",
-  chat: "AI 對話",
   summary: "AI Summary",
   attachments: "附件與封存",
 };

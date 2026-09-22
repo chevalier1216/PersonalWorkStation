@@ -1,16 +1,12 @@
 -- Read-only M4-M6 production postflight. Every returned row must be true.
 with table_targets(name) as (
   values
-    ('ai_conversations'),
-    ('ai_messages'),
-    ('ai_pending_actions'),
     ('ai_summaries'),
     ('task_attachments'),
     ('capacity_snapshots'),
     ('metadata_backups')
 ), function_targets(name,signature) as (
   values
-    ('ai_command','public.ai_command(text,jsonb)'),
     ('summary_command','public.summary_command(text,jsonb)'),
     ('history_search','public.history_search(text,text)'),
     ('attachment_command','public.attachment_command(text,jsonb)')

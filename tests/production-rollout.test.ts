@@ -11,7 +11,6 @@ const baseMigrations = [
 ];
 
 const rolloutMigrations = [
-  "202609200005_ai_chat.sql",
   "202609210001_restore_task_details_command.sql",
   "202609210002_ai_summary_search.sql",
   "202609210003_attachments_maintenance.sql",
@@ -59,7 +58,7 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((db) => db.close()));
 });
 
-describe("M4-M6 production rollout", () => {
+describe("M5-M6 production rollout", () => {
   it("applies the production migration order atomically from the audited M3 baseline", async () => {
     const db = await productionBaseline();
     opened.push(db);
@@ -83,7 +82,7 @@ describe("M4-M6 production rollout", () => {
       ),
     );
 
-    expect(result.rows).toHaveLength(33);
+    expect(result.rows).toHaveLength(22);
     expect(result.rows.every((row) => row.passed)).toBe(true);
   });
 
@@ -104,7 +103,7 @@ describe("M4-M6 production rollout", () => {
       bucket_present: boolean;
     }>(`
       select
-        to_regclass('public.ai_conversations') is not null as schema_present,
+        to_regclass('public.ai_summaries') is not null as schema_present,
         exists(select 1 from storage.buckets where id='pws-attachments') as bucket_present
     `);
     expect(result.rows[0]).toEqual({

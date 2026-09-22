@@ -29,7 +29,6 @@ import {
 import { TaskDetails } from "./TaskDetails";
 import { Today } from "./Today";
 import { AIChat } from "./AIChat";
-import type { AIOperations, AIPendingAction } from "./ai";
 import type { SummaryOperations } from "./summary";
 import type { SearchOperations } from "./search";
 import { SearchView } from "./SearchView";
@@ -182,7 +181,6 @@ export function Board({
   execute,
   onSignOut,
   calendar,
-  ai,
   summaries,
   search,
   attachments,
@@ -190,7 +188,6 @@ export function Board({
   execute: Execute;
   onSignOut?: () => Promise<void>;
   calendar?: CalendarOperations;
-  ai?: AIOperations;
   summaries?: SummaryOperations;
   search?: SearchOperations;
   attachments?: AttachmentOperations;
@@ -242,7 +239,6 @@ export function Board({
   const [view, setView] = useState<
     "today" | "board" | "calendar" | "ai" | "summary" | "search" | "settings"
   >("today");
-  const [aiConversationId, setAIConversationId] = useState<string | null>(null);
   const openTask = (taskId: string, noteId?: string, summaryId?: string) =>
     setEditingTarget({ taskId, noteId, summaryId });
   const sensors = useSensors(
@@ -327,22 +323,6 @@ export function Board({
       return;
     }
     void run("move_task", { id: task.id, column_id, position });
-  }
-  async function resolveAIAction(action: AIPendingAction, confirm: boolean) {
-    if (!ai) throw new Error("AI 操作尚未設定");
-    if (confirm && action.action_type === "calendar_relation") {
-      if (!calendar) throw new Error("Google Calendar 尚未設定");
-      const task = data.tasks.find(
-        (item) => item.id === action.payload.task_id,
-      );
-      const calendarId = String(action.payload.calendar_id ?? "");
-      if (!task) throw new Error("找不到要建立 Calendar event 的 Task");
-      if (!calendarId) throw new Error("待確認動作缺少 Calendar");
-      setData(await calendar.create(task, calendarId));
-      setLoaded(true);
-      setNotice("Calendar 狀態已更新");
-    }
-    return ai.resolve(action, confirm);
   }
   return (
     <div className="workspace">
@@ -435,11 +415,6 @@ export function Board({
                 ? runCalendar(() => calendar.sync(data))
                 : Promise.resolve(false)
             }
-            ai={ai}
-            resolveAIAction={resolveAIAction}
-            refreshWorkspace={async () => {
-              await run("load");
-            }}
           />
         </main>
       ) : view === "calendar" ? (
@@ -459,14 +434,7 @@ export function Board({
         </main>
       ) : view === "ai" ? (
         <main id="main-content">
-          <AIChat
-            operations={ai}
-            resolveAction={resolveAIAction}
-            onWorkspaceChanged={async () => {
-              await run("load");
-            }}
-            initialConversationId={aiConversationId}
-          />
+          <AIChat />
         </main>
       ) : view === "summary" ? (
         <main id="main-content">
@@ -483,10 +451,6 @@ export function Board({
           <SearchView
             operations={search}
             openTask={openTask}
-            openConversation={(id) => {
-              setAIConversationId(id);
-              setView("ai");
-            }}
           />
         </main>
       ) : view === "settings" ? (

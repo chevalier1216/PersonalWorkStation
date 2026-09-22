@@ -95,7 +95,7 @@ API failure
 ```text
 在工作台輸入建 Task 要求
 → 開啟 ChatGPT 一般對話頁
-→ 提示已預填
+→ 提示已預填，或已複製且可直接貼上
 → 頁面不是 Work
 → 使用者確認 High 後送出
 → 將建議帶回工作台確認
@@ -115,7 +115,7 @@ API failure
 
 ```text
 @AI 整理
-→ 開啟 ChatGPT 一般對話頁並預填 Task context
+→ 開啟 ChatGPT 一般對話頁並預填或複製 Task context
 → 使用者確認 High 後送出
 → 將結果帶回工作台建立 Summary
 → 原 Task 不變

@@ -9,11 +9,9 @@ import {
 export function SearchView({
   operations,
   openTask,
-  openConversation,
 }: {
   operations?: SearchOperations;
   openTask: (taskId: string, noteId?: string, summaryId?: string) => void;
-  openConversation: (conversationId: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [field, setField] = useState<SearchField>("all");
@@ -38,10 +36,6 @@ export function SearchView({
   }
 
   function open(result: SearchResult) {
-    if (result.result_type === "chat" && result.conversation_id) {
-      openConversation(result.conversation_id);
-      return;
-    }
     if (result.task_id)
       openTask(
         result.task_id,
@@ -55,9 +49,9 @@ export function SearchView({
       <div className="heading">
         <div>
           <p className="eyebrow">HISTORY SEARCH</p>
-          <h1>找回 Task 與對話</h1>
+          <h1>找回工作紀錄</h1>
           <p className="muted">
-            搜尋工作紀錄、任務欄位、Calendar 關聯與 AI 歷史。
+            搜尋工作紀錄、任務欄位、Calendar 關聯與 AI Summary。ChatGPT 對話請在 ChatGPT 內搜尋。
           </p>
         </div>
       </div>

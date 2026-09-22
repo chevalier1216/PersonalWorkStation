@@ -152,7 +152,6 @@ language sql stable security definer set search_path=public,pg_temp as $$
     'record_count',
       (select count(*) from public.tasks where owner_id=auth.uid())+
       (select count(*) from public.task_notes where owner_id=auth.uid())+
-      (select count(*) from public.ai_messages where owner_id=auth.uid())+
       (select count(*) from public.ai_summaries where owner_id=auth.uid())+
       (select count(*) from public.task_attachments where owner_id=auth.uid())
   )
@@ -171,8 +170,6 @@ language sql stable security definer set search_path=public,pg_temp as $$
     'status_history',coalesce((select jsonb_agg(to_jsonb(x)-'owner_id' order by changed_at) from public.task_status_history x where owner_id=auth.uid()),'[]'::jsonb),
     'notifications',coalesce((select jsonb_agg(to_jsonb(x)-'owner_id' order by created_at) from public.notifications x where owner_id=auth.uid()),'[]'::jsonb),
     'summaries',coalesce((select jsonb_agg(to_jsonb(x)-'owner_id' order by created_at) from public.ai_summaries x where owner_id=auth.uid()),'[]'::jsonb),
-    'conversations',coalesce((select jsonb_agg(to_jsonb(x)-'owner_id'-'openai_conversation_id' order by created_at) from public.ai_conversations x where owner_id=auth.uid()),'[]'::jsonb),
-    'messages',coalesce((select jsonb_agg(to_jsonb(x)-'owner_id' order by created_at) from public.ai_messages x where owner_id=auth.uid()),'[]'::jsonb),
     'attachments',coalesce((select jsonb_agg(to_jsonb(x)-'owner_id' order by created_at) from public.task_attachments x where owner_id=auth.uid()),'[]'::jsonb)
   )
 $$;

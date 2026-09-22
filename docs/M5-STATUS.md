@@ -8,11 +8,12 @@
 - Task、Notes、Calendar relation 與 Summary 的工作台歷史搜尋。
 - Note 與 Summary 結果可返回來源 Task。
 
-## 需重新實作及驗證
+## 修正後已完成（本機）
 
-- 移除付費 API Edge Function 與相關 request contract。
-- 將 `@AI 整理` 改為 ChatGPT 一般對話 browser handoff。
-- 提供使用者將整理結果建立為 Summary Card 的明確操作。
-- 移除 Supabase ChatGPT conversation 複本與 Chat 搜尋承諾。
+- 已移除付費 API Edge Function、Chat persistence migration 與相關 request contract。
+- `在 ChatGPT 整理` 會帶入目前 Task、Notes、Checklist、狀態歷史與前一版 Summary。
+- 使用者可將結果貼回工作台，建立具體標題、差異欄位與完整摘要的 Summary Card。
+- 已移除 Supabase ChatGPT conversation 複本與工作台 Chat 搜尋入口；ChatGPT 歷史由 ChatGPT 保存。
+- Summary 版本鏈、refresh persistence、Summary index、Note 搜尋及 desktop/mobile E2E 已通過。
 
-因此 M5 目前為「部分保留、重新實作中」，舊的 API fixture 與 E2E 結果不代表修正後 V1 完成。
+M5 修正後本機實作完成；production migration 與正式站 smoke 尚未完成。

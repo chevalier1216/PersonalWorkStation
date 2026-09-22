@@ -46,7 +46,9 @@ test("AI Summary index opens its source Task at the selected version", async ({
   await page.getByRole("button", { name: "新增任務", exact: true }).click();
   await page.getByRole("button", { name: title, exact: true }).click();
   let dialog = page.getByRole("dialog", { name: "任務詳細資料" });
-  await dialog.getByRole("button", { name: "@AI 整理" }).click();
+  await dialog.getByLabel("Summary 標題").fill("發佈準備與驗證結果");
+  await dialog.getByLabel("完整摘要").fill("已完成響應式摘要索引驗證。");
+  await dialog.getByRole("button", { name: "保存 Summary Card" }).click();
   await expect(dialog.getByText("發佈準備與驗證結果")).toBeVisible();
   await dialog.getByLabel("關閉", { exact: true }).click();
 
