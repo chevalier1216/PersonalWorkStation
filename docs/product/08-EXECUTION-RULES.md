@@ -105,6 +105,35 @@ npm run build
 - 不得因額度不足自動升級方案、購買 credits 或改走按 token 計費 API。
 - 一般對話額度接近上限、無法使用 High 或需要新增費用時，依 Cost Guardrail 停止並通知使用者。
 
+## GitHub Authentication Guardrail（硬性執行規則）
+
+- GitHub 日常操作固定使用既有 Codex GitHub Connector 或目前 repository environment。
+- 不得把 Browser Login、`gh auth login` 或 device verification 當成例行 GitHub 操作，也不得因 token 狀態不明而反覆啟動登入或要求驗證碼。
+- 每項 GitHub 操作先依既有環境正常執行一次。只有操作回傳明確的 authentication 或 permission failure，才可判定需要使用者介入。
+- 確認為 authentication 或 permission failure 後，必須保留原始錯誤、記錄受阻操作與需要使用者完成的最小動作，並只要求使用者介入一次。
+- 在使用者確認 credential、權限或 connector 狀態已改變前，不得重試相同登入或驗證路徑，不得無限重試。
+- GitHub authentication blocker 不得阻塞其他可獨立完成的實作、驗證、文件更新或本機 commit。
+
+### Google OAuth / Calendar Manual Blocker
+
+- Google OAuth 或 Calendar 若需要使用者本人登入、同意授權或操作 Google 頁面，必須記錄為 manual blocker。
+- 紀錄必須包含待完成動作、受影響功能或驗證，以及已完成且可繼續的其他工作。
+- 同一授權狀態未改變前不得重複嘗試，不得讓該 blocker 阻塞其他可獨立完成的工作。
+
+## Default Repository Completion Rule（硬性執行規則）
+
+任何 repo 修改完成後，除非使用者明確要求暫停或只產生未提交草稿，預設必須連續完成：
+
+1. 執行與變更範圍相稱的必要驗證。
+2. 對安全且明確的一般錯誤自行修正並重跑驗證。
+3. Commit 到目前工作分支。
+4. Push 目前工作分支。
+5. 回報目前分支、commit hash、驗證結果與 push 結果。
+
+不得以只修改檔案、只通過本機檢查或只建立 commit 取代完整交付流程。
+
+若 push 遇到 GitHub Authentication Guardrail 定義的真正 authentication 或 permission failure，必須保留已完成的本機 commit、將 push 記錄為 manual blocker，並繼續所有不依賴該權限的工作。權限狀態未改變前不得反覆 push 或重新登入。
+
 ## 禁止事項
 
 不得：
