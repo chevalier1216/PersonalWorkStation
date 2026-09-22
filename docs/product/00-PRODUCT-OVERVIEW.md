@@ -18,10 +18,10 @@ V1 必須真的可以日常使用，不接受只有 Dashboard、UI Skeleton、Pl
 - Task / Board
 - Google Calendar 整合
 - 工作台內通知中心
-- AI Chat
-- AI 操作 Task
-- AI Summary
-- Chat / Task 歷史搜尋
+- 以瀏覽器開啟 ChatGPT 一般對話（GPT-5.6 Sol High）
+- AI Task 建議回到工作台確認
+- AI Summary handoff 與 Summary Card
+- ChatGPT 自身對話歷史 / 工作台 Task 歷史搜尋
 - Supabase persistence
 - Google Drive 長期附件封存
 - 自動資料維護
@@ -38,6 +38,9 @@ V1 必須真的可以日常使用，不接受只有 Dashboard、UI Skeleton、Pl
 - 飛書登入實作
 - Browser desktop notification
 - 自動跨 Chat 長期記憶
+- OpenAI API 整合
+- ChatGPT Work 對話與 Work 額度
+- 在工作台內嵌或自動操作 ChatGPT 網頁
 - Google Calendar 通用事件編輯器
 - OCR 全文索引
 - Plugin Framework
@@ -60,4 +63,3 @@ V1 必須真的可以日常使用，不接受只有 Dashboard、UI Skeleton、Pl
 4. `08-EXECUTION-RULES.md`：Codex / Work 執行規則
 
 若文件衝突，依以上順序判定；不得自行腦補新需求。
-

@@ -1,25 +1,23 @@
-# M4 — AI Chat + AI Task Actions 最小可驗證實作計畫
+# M4 — ChatGPT Browser Handoff + AI Task Drafts
 
 ## 目標
 
-以 server-side OpenAI Responses API 建立可持久保存的多輪 Chat，直接建立 Task，並讓修改、刪除與 Calendar relation 一律先顯示待確認動作。
+從 PersonalWorkStation 開啟 ChatGPT 一般對話頁，使用現有 ChatGPT 訂閱的 GPT-5.6 Sol High，預填使用者輸入與必要工作台 context。V1 不使用 Work 或 OpenAI API。
 
-## 垂直切片
+## 最小可驗證切片
 
-1. Today 精簡 Chat 與完整 AI 對話頁共用 conversation persistence。
-2. 每個 conversation 保存 OpenAI conversation ID；後續 request 使用 conversation state，不重送完整歷史。
-3. 只查詢與使用者當前問題關聯的 Task／Notes／Calendar cache，限制筆數，不在每輪載入整個資料庫。
-4. `create_task` tool 可直接透過既有 `workspace_command` 建立 Task。
-5. 修改、刪除與 Calendar relation tool 只建立 `pending action`；UI 顯示具體內容，使用者確認後才執行。
-6. OpenAI 不可達時保存使用者訊息與失敗狀態，Task／Board／Today 繼續可用。
+1. Today 精簡入口與 AI 對話頁共用 browser handoff URL builder。
+2. 使用者按「在 ChatGPT 開啟」後，新分頁必須是一般對話並保留工作台頁面。
+3. 提示只能包含使用者明確輸入或選取的資料，不得自動載入整個資料庫。
+4. ChatGPT 只產生 Task 草稿或修改建議；任何工作台資料變更仍由使用者在工作台確認執行。
+5. 新分頁遭阻擋時顯示直接連結；ChatGPT 不可達時 Task、Board、Today 仍可用。
 
 ## 驗證
 
-- PostgreSQL：conversation、messages、pending action、跨 owner 防護與確認後才修改。
-- Unit：Responses payload 固定使用 `gpt-5.6-sol`、`xhigh`、conversation state、有限 context 與 tool schema。
-- Browser E2E：建立 conversation、多輪歷史、直接建立 Task、修改先確認、取消不修改、refresh persistence、AI failure isolation。
-- Build、production migration、Edge Function deploy、真實 Responses API smoke test。
+- Unit：URL 固定使用 `chatgpt.com` 一般對話模式、提示正確編碼且不含 Work/API 參數。
+- Browser E2E：新分頁、預填內容、popup blocked fallback、mobile layout 與 failure isolation。
+- Production smoke：使用指定帳號確認一般「對話」與 High；不自動送出測試訊息。
 
-## 成本與部署界線
+## 成本邊界
 
-OpenAI API 按 token 計費且無可依賴的固定免費額度。Local tests 不呼叫 OpenAI。`OPENAI_API_KEY` secret、production Edge Function 與第一次真實 request 均等待 Cost Guardrail 明確授權。
+使用既有 ChatGPT 訂閱的一般對話額度，不新增 API 費用。不得切換 Work、購買 credits、升級方案或啟用付費 API。

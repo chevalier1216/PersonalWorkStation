@@ -1,18 +1,39 @@
 # AI Chat & Summary
 
-## AI
+## AI 使用方式
 
-使用 OpenAI Responses API。
+V1 使用使用者現有 ChatGPT 訂閱方案，不使用 OpenAI API。
 
-模型：
+工作台的 AI 入口必須以瀏覽器開啟 ChatGPT 一般「對話」頁，並預填工作台整理出的提示文字。
 
-GPT-5.6 Sol
+目標設定：
 
-Reasoning：
+- ChatGPT 一般對話
+- GPT-5.6 Sol
+- High reasoning
 
-xhigh
+禁止：
 
-Server-side 呼叫。
+- 自動切換至 Work
+- 使用 Work 對話處理 V1 日常 AI 對話
+- 要求或儲存 OpenAI API key
+- 呼叫按 token 計費的 OpenAI API
+- 以 Extra High / xhigh 取代 High
+
+模型與 reasoning 由 ChatGPT 帳號及網頁介面控制。工作台必須提示使用者確認顯示為 High；不得聲稱能透過 URL 強制選定模型。
+
+## Browser Handoff
+
+工作台提供瀏覽器入口，開啟 `chatgpt.com` 一般對話頁並預填內容。
+
+基於瀏覽器同源與 ChatGPT 頁面安全限制：
+
+- 不在 GitHub Pages 內以 iframe 嵌入 ChatGPT
+- 不讀取 ChatGPT 頁面內容、登入狀態或對話結果
+- 不代替使用者按下送出
+- 使用者在 ChatGPT 頁面確認 High 後送出
+
+若瀏覽器阻擋新分頁，工作台必須顯示可操作的重試或直接連結。
 
 ## Chat UI
 
@@ -20,96 +41,56 @@ Server-side 呼叫。
 
 ### 今日
 
-精簡 Chat。
-
-適合：
-
-- 快問
-- 快速建立 Task
+精簡入口，適合快問或產生 Task 草稿。
 
 ### AI 對話
 
-完整 Chat 頁。
+完整入口，允許使用者補充提示內容後開啟 ChatGPT 一般對話頁。
 
-支援：
+ChatGPT conversation history 由 ChatGPT 保存與搜尋。V1 不在 Supabase 複製 ChatGPT 完整對話，也不把 ChatGPT 對話描述成工作台內建歷史。
 
-- 多輪對話
-- Conversation history
-- Search
-- 開啟舊 Conversation
+## 可交給 ChatGPT 的資料
 
-## AI 可讀資料
+只有使用者從工作台畫面明確選取或目前正在查看的資料，才可加入預填提示，例如：
 
-預設可依需求讀：
+- Task 基本欄位
+- Checklist
+- Activity / Notes
+- Calendar relation
+- 既有 AI Summary
 
-- Tasks
-- Calendar
-- Notes
-- AI Summary
+不得自動將整個資料庫、其他 Task 或私人附件內容放入 ChatGPT 網址或提示。
 
-只取得與當前問題相關資料。
+## AI Task Actions
 
-禁止每次載入整個資料庫。
+ChatGPT 在 V1 只產生建議或結構化 Task 草稿，不可直接操作 PersonalWorkStation 資料庫。
 
-## AI Actions
+新增、修改、刪除 Task 或 Calendar relation 都必須回到工作台，由使用者確認並執行。
 
-可直接：
-
-- 新增 Task
-
-需確認：
-
-- 修改 Task
-- 刪除 Task
-- 建立 Calendar relation
-- 修改 Calendar relation
-
-## Chat History
-
-完整聊天紀錄持久保存。
-
-目前 Conversation 使用 OpenAI conversation state / compaction。
-
-不得每輪重新傳送全部聊天歷史。
+V1 不宣稱具備 ChatGPT 網頁與工作台之間的自動雙向同步。
 
 ## Cross-chat Retrieval
 
-V1 不自動建立長期記憶。
+V1 不建立自動長期記憶。
 
-只有使用者明確要求，例如：
-
-> 找我以前談過 XXX 的內容。
-
-才搜尋歷史 conversation 並帶入相關內容。
+過去 ChatGPT conversation 由使用者在 ChatGPT 介面搜尋；工作台只搜尋自身保存的 Task、Notes、Calendar relation 與 Summary。
 
 ## @AI Summary
 
-Task Activity 支援 `@AI`。
+Task Activity 支援 `@AI` 瀏覽器 handoff。
 
-整理結果不得直接覆寫原 Task。
+工作台將目前 Task 的必要內容整理成提示，開啟 ChatGPT 一般對話頁。使用者取得結果後，回到工作台建立 Summary Card。
 
-預設建立：
-
-**AI Summary Card**
-
-只有使用者明確要求建立待辦時才建立 Task。
+整理結果不得直接覆寫原 Task。只有使用者明確建立待辦時才建立 Task。
 
 ## Summary Title
 
-AI 依內容濃縮命名。
-
-必須：
+Summary 標題必須：
 
 - 人類可讀
 - 有具體意義
 
-禁止使用只有：
-
-- 摘要
-- 進度整理
-- 工作摘要
-
-等空泛標題。
+禁止只使用「摘要」、「進度整理」、「工作摘要」等空泛標題。
 
 ## Summary Relations
 
@@ -119,25 +100,13 @@ Summary ↔ Source Task 必須雙向連結。
 
 允許多份，不覆蓋。
 
-格式：
+格式：`v.YY.MM.DD.HHmm`。
 
-`v.YY.MM.DD.HHmm`
-
-例如：
-
-`v.26.08.21.1915`
-
-同分鐘重複：
-
-`-2 / -3`
-
-內部仍使用 UUID。
+同分鐘重複使用 `-2 / -3`；內部仍使用 UUID。
 
 ## 新版本規則
 
-舊 Summary：
-
-Description 第一行增加最新版本連結。
+舊 Summary 的 Description 第一行增加最新版本連結。
 
 新 Summary 最上方先列：
 
@@ -150,7 +119,4 @@ Description 第一行增加最新版本連結。
 
 ## Timeline
 
-Summary 版本鏈使用時間軸。
-
-不得使用 v1 / v2 / v3。
-
+Summary 版本鏈使用時間軸，不使用 v1 / v2 / v3。

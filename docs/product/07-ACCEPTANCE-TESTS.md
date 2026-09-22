@@ -93,27 +93,46 @@ API failure
 ## AI Create Task
 
 ```text
-要求 AI 建 Task
-→ 直接建立
-→ Board 出現
+在工作台輸入建 Task 要求
+→ 開啟 ChatGPT 一般對話頁
+→ 提示已預填
+→ 頁面不是 Work
+→ 使用者確認 High 後送出
+→ 將建議帶回工作台確認
+→ 建立後 Board 出現
 ```
 
 ## AI Modify
 
 ```text
 要求 AI 修改
-→ 先確認
-→ 確認後修改
+→ ChatGPT 只產生修改建議
+→ 工作台資料尚未改變
+→ 使用者回到工作台確認並執行
 ```
 
 ## AI Summary
 
 ```text
 @AI 整理
-→ 建 Summary
+→ 開啟 ChatGPT 一般對話頁並預填 Task context
+→ 使用者確認 High 後送出
+→ 將結果帶回工作台建立 Summary
 → 原 Task 不變
 → 雙向連結
 ```
+
+## AI Usage Boundary
+
+```text
+任何 AI 入口
+→ 不開啟 Work
+→ 不呼叫 OpenAI API
+→ 不要求 API key
+→ 不產生 Work 額度或 API token 費用
+```
+
+瀏覽器 smoke test 必須確認 ChatGPT 頁面顯示一般「對話」模式與 High。若 ChatGPT 帳號方案或網頁狀態無法提供 Sol 5.6 High，標示未驗證，不得自行升級方案或改用付費 API。
 
 ## Summary Version
 
@@ -174,4 +193,3 @@ Drive failure
 - 正式部署 smoke test 通過
 
 才算完成。
-

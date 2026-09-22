@@ -32,10 +32,11 @@
 - Google Drive API：官方目前標準使用無額外費用；每日每 project 400,000,000 quota units 門檻內不收費。若政策改變、接近門檻或需開啟計費，必須先停止並取得新授權。
 - GitHub Pages：目前 repository 為 public，可使用 GitHub Free Pages；若 repository／方案條件改變，發布前重新檢查。
 
-### 會產生新增費用，尚未授權
+### ChatGPT V1 額度
 
-- OpenAI API：依模型的 input、cached input 與 output token 計費，沒有可依賴的固定免費額度。最低實際費用取決於第一次真實 request 的 token 數，持續使用費用隨請求量與 token 數增加。
-- 在使用者明確授權 OpenAI API 費用並提供 `OPENAI_API_KEY` 前，不得設定 secret、部署會被誤認為可用的 AI production flow，或執行真實 request。
+- AI 功能使用既有 ChatGPT 訂閱的一般對話額度，不新增 API token 費用。
+- 禁止切換 Work、使用 OpenAI API、購買 credits 或自動升級方案。
+- 一般對話額度接近上限或 High 不可用時，停止並依 Cost Guardrail 通知使用者。
 
 ## 變更順序
 
@@ -62,13 +63,14 @@
 7. 執行容量與 metadata backup smoke，讀回 `PersonalWorkStation/Exports/YYYY/MM` 檔案並確認輸出不含 token、OAuth identifier 或 secret。
 8. 為 `holiday-sync.yml` 設定既有 publishable key 與獨立 `HOLIDAY_SYNC_SECRET`，手動觸發一次並確認 `calendar_sync_runs` 成功，之後才保留每週排程。
 
-### Phase C — OpenAI production（需另行費用授權）
+### Phase C — ChatGPT 一般對話 browser handoff
 
-1. 設定 `OPENAI_API_KEY` secret。
-2. 部署 `ai-chat` 與 `ai-summary`。
-3. 以最小真實 request 驗證固定模型 `gpt-5.6-sol`、`xhigh` reasoning、conversation persistence、direct create 與 modify confirmation。
-4. 驗證 Summary 建立版本鏈、差異與雙向連結；原 Task 不變。
-5. 模擬／確認 API failure 只建立失敗狀態與通知，Task、Board、Today 保持可用。
+1. 移除舊 `ai-chat`、`ai-summary` API flow 與付費 API request contract。
+2. 驗證所有 AI 入口只開啟 ChatGPT 一般「對話」，且提示已預填。
+3. 以指定帳號確認顯示 High；不得進入 Work，也不得自動送出。
+4. 驗證 Task 建議必須回到工作台確認後才改資料。
+5. 驗證 Summary 可由使用者帶回建立版本鏈、差異與雙向連結，原 Task 不變。
+6. 驗證 popup blocked／ChatGPT 不可達時 Task、Board、Today 保持可用。
 
 ### Phase D — 正式 Web 發布
 
@@ -81,7 +83,7 @@
 
 ## 完成判定
 
-只有 Phase A–D 全部有 production 證據，且正式 URL smoke 通過，才能將 PersonalWorkStation V1 標記完成。Local／CI 成功不可替代 OpenAI、Drive 與正式 Pages 驗證。
+只有 Phase A–D 全部有 production 證據，且正式 URL smoke 通過，才能將 PersonalWorkStation V1 標記完成。Local／CI 成功不可替代 ChatGPT browser handoff、Drive 與正式 Pages 驗證。
 
 ## 官方費用與配額來源
 

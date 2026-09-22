@@ -35,10 +35,10 @@ Today + Notification + Recurring
 Google Calendar
 
 ### M4
-AI Chat + AI Task Actions
+ChatGPT 一般對話瀏覽器 handoff + AI Task 草稿確認
 
 ### M5
-AI Summary + History Search
+AI Summary 瀏覽器 handoff + 工作台歷史搜尋
 
 ### M6
 Attachments + Drive Archive + Maintenance
@@ -96,6 +96,15 @@ npm run build
 
 確認仍在免費方案或免費額度內的操作可正常執行。接近、即將或可能超出免費額度時，必須在產生費用前停止並提前通知使用者。
 
+### ChatGPT V1 額度邊界
+
+- V1 AI 功能使用使用者現有 ChatGPT 訂閱的一般對話額度。
+- 必須開啟一般「對話」，使用 GPT-5.6 Sol High。
+- 不得切換至 Work 或消耗 Work 額度。
+- 不得建立、要求或使用 OpenAI API key。
+- 不得因額度不足自動升級方案、購買 credits 或改走按 token 計費 API。
+- 一般對話額度接近上限、無法使用 High 或需要新增費用時，依 Cost Guardrail 停止並通知使用者。
+
 ## 禁止事項
 
 不得：
@@ -120,7 +129,7 @@ npm run build
 → Today 正常
 → Task CRUD / Board 正常
 → Calendar 正常
-→ AI Chat 正常
+→ ChatGPT 一般對話瀏覽器 handoff 正常
 → Persistence 正常
 → Refresh 正常
 → E2E 通過

@@ -15,7 +15,7 @@
 - 今日
 - 任務看板
 - 行事曆
-- AI 對話
+- AI 對話（開啟 ChatGPT）
 - AI 摘要
 - 歷史紀錄
 - 設定
@@ -50,7 +50,7 @@ Discord 官網作為基調參考。
 
 - Tasks
 - Calendar
-- AI Chat
+- ChatGPT 一般對話入口
 - Notifications
 - Holiday reminder
 
@@ -81,8 +81,15 @@ Mobile：
 - 今日
 - Task
 - Calendar
-- AI Chat
+- ChatGPT 一般對話入口
+
+## ChatGPT Browser Entry
+
+- 清楚標示「一般對話 · Sol 5.6 · High」。
+- 按鈕文字使用「在 ChatGPT 開啟」，不得使用會誤導為工作台內直接送出的「送出」。
+- 開啟後保留工作台頁面，讓使用者可帶回 Task 建議或 Summary。
+- 顯示「請在 ChatGPT 確認 High 後送出」；不得引導至 Work。
+- 新分頁遭阻擋時顯示可直接開啟的連結。
 - 通知
 
 手機版不要求與 Desktop 同 layout。
-

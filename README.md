@@ -6,7 +6,7 @@
 
 - M1 Task / Board / Persistence 與 M2 Today / Notification / Recurring 已完成 production 驗證。
 - M3 Google Calendar 已完成 production migration、指定帳號 OAuth 與實際 event smoke test。
-- M4 AI Chat / AI Task Actions、M5 AI Summary / History Search、M6 Attachments / Drive Archive / Maintenance 已完成程式、資料庫 migration／Edge Function source 與本機自動驗證；尚未部署相關 production migration／Edge Functions。OpenAI API 未取得付費授權，因此未設定金鑰或執行真實付費呼叫。
+- M4／M5 已改為使用現有 ChatGPT 訂閱的一般對話 browser handoff（GPT-5.6 Sol High），不使用 Work 或 OpenAI API；舊 API 方向正在移除與重新驗證。M6 Attachments / Drive Archive / Maintenance 已完成本機實作，尚未部署 production migration／Edge Functions。
 - M7 Responsive / UI Polish / Production Hardening 已補齊七個主導覽頁面及 GitHub Pages workflow；正式站必須在 production 設定、合併、部署與 smoke test 後才算完成。
 
 詳細狀態見 `docs/M2-PRODUCTION-STATUS.md`、`docs/M3-STATUS.md`、`docs/M4-STATUS.md`、`docs/M5-STATUS.md`、`docs/M6-STATUS.md` 與 `docs/M7-STATUS.md`。
@@ -47,7 +47,7 @@ npm run build
 
 - `npm test` 使用 PGlite 的 PostgreSQL 引擎執行實際 migration、RLS、RPC、狀態歷史、循環任務、通知、官方行事曆原子替換、Google Calendar 快取／relation／failure isolation 測試。
 - E2E 使用 `tests/fixture.html` 及同一 migration 的 PGlite 測試資料庫，驗證 UI 與重整保存；測試入口不會打包到正式產物。
-- 本機自動測試本身不代表 hosted integration 通過；M1-M3 的 production 證據分別記錄在狀態文件。M4-M7 與正式 GitHub Pages 仍需完成各自的 production 驗證。
+- 本機自動測試本身不代表 hosted integration 通過；M1-M3 的 production 證據分別記錄在狀態文件。修正後的 M4-M7 與正式 GitHub Pages 仍需完成各自的 production 驗證。
 - `.env.local`、測試輸出與 build output 均不提交。
 
 ## GitHub Pages

@@ -24,10 +24,12 @@
 
 ## External
 
-- OpenAI Responses API
+- ChatGPT 一般對話網頁（瀏覽器 handoff；使用既有訂閱）
 - Google OAuth
 - Google Calendar API
 - Google Drive API
+
+V1 不使用 OpenAI API，也不開啟 ChatGPT Work。Frontend 只產生最小必要提示並以新分頁開啟 `chatgpt.com`；不得把 ChatGPT 頁面嵌入 iframe、讀取其 DOM、代替使用者送出，或宣稱可強制設定網頁模型。
 
 ## Hosting
 
@@ -59,7 +61,7 @@ V1 不實作。
 
 ## Mainland China Resilience
 
-Google / OpenAI 暫時不可達時：
+Google / ChatGPT 暫時不可達時：
 
 核心功能仍應可以：
 
@@ -85,7 +87,6 @@ Google / OpenAI 暫時不可達時：
 Public repo 禁止包含：
 
 - `.env`
-- OpenAI key
 - Google client secret
 - Google OAuth token
 - Supabase service role
@@ -102,3 +103,4 @@ Public repo 禁止包含：
 
 Client-side 不得暴露 server secret。
 
+ChatGPT 網頁使用使用者既有登入狀態；PersonalWorkStation 不保存 ChatGPT cookie、token 或帳號憑證。
