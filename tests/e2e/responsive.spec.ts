@@ -10,6 +10,7 @@ test("V1 main navigation exposes every authoritative destination", async ({
     "任務看板",
     "行事曆",
     "AI 對話",
+    "AI 執行中心",
     "AI 摘要",
     "歷史紀錄",
     "設定",
@@ -48,8 +49,10 @@ test("AI Summary index opens its source Task at the selected version", async ({
   let dialog = page.getByRole("dialog", { name: "任務詳細資料" });
   await dialog.getByLabel("Summary 標題").fill("發佈準備與驗證結果");
   await dialog.getByLabel("完整摘要").fill("已完成響應式摘要索引驗證。");
-  await dialog.getByRole("button", { name: "保存 Summary Card" }).click();
-  await expect(dialog.getByText("發佈準備與驗證結果")).toBeVisible();
+  await dialog.getByRole("button", { name: "建立摘要任務卡" }).click();
+  await expect(
+    dialog.locator(".summary-card").filter({ hasText: "發佈準備與驗證結果" }),
+  ).toBeVisible();
   await dialog.getByLabel("關閉", { exact: true }).click();
 
   await page.getByRole("button", { name: "AI 摘要", exact: true }).click();

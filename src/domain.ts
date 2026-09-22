@@ -54,6 +54,7 @@ export interface TaskRelation {
   task_id: string;
   related_task_id: string;
   relation_type: RelationType;
+  reason: string;
 }
 export interface StatusHistory {
   id: string;
@@ -80,8 +81,24 @@ export interface Notification {
   created_at: string;
 }
 export interface TodayPreferences {
-  module_order: Array<"tasks" | "calendar" | "ai_chat" | "notifications" | "holidays">;
-  hidden_modules: Array<"tasks" | "calendar" | "ai_chat" | "notifications" | "holidays">;
+  module_order: Array<
+    | "tasks"
+    | "calendar"
+    | "ai_chat"
+    | "ai_execution"
+    | "notifications"
+    | "holidays"
+    | "exchange_rates"
+  >;
+  hidden_modules: Array<
+    | "tasks"
+    | "calendar"
+    | "ai_chat"
+    | "ai_execution"
+    | "notifications"
+    | "holidays"
+    | "exchange_rates"
+  >;
   updated_at: string;
 }
 export interface CalendarDay {
@@ -191,7 +208,13 @@ export const recurrenceLabels: Record<RecurrenceType, string> = {
 };
 
 export const emptyPreferences: TodayPreferences = {
-  module_order: ["tasks", "calendar", "notifications", "holidays"],
+  module_order: [
+    "tasks",
+    "calendar",
+    "ai_execution",
+    "notifications",
+    "holidays",
+  ],
   hidden_modules: [],
   updated_at: "",
 };

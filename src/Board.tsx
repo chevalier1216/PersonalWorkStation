@@ -28,7 +28,7 @@ import {
 } from "./domain";
 import { TaskDetails } from "./TaskDetails";
 import { Today } from "./Today";
-import { AIChat } from "./AIChat";
+import { AIChat, type AITaskDraft } from "./AIChat";
 import type { SummaryOperations } from "./summary";
 import type { SearchOperations } from "./search";
 import { SearchView } from "./SearchView";
@@ -36,6 +36,12 @@ import type { AttachmentOperations } from "./attachments";
 import { MaintenanceView } from "./MaintenanceView";
 import { CalendarView } from "./CalendarView";
 import { SummaryView } from "./SummaryView";
+import { ExecutionCenter } from "./ExecutionCenter";
+import {
+  emptyWorkflowState,
+  type WorkflowOperations,
+  type WorkflowRun,
+} from "./workflow";
 export type Execute = (
   action: string,
   payload?: Record<string, unknown>,
@@ -46,6 +52,29 @@ export type CalendarOperations = {
   sync: (snapshot: Snapshot) => Promise<Snapshot>;
   create: (task: Task, calendarId: string) => Promise<Snapshot>;
 };
+
+export function doneTaskGroups(tasks: Task[], now = new Date()) {
+  const monthKey = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const currentKey = monthKey(now);
+  const previousKey = monthKey(previous);
+  const completedKey = (task: Task) =>
+    task.completed_at ? monthKey(new Date(task.completed_at)) : "";
+  const newestFirst = (a: Task, b: Task) =>
+    (b.completed_at ?? "").localeCompare(a.completed_at ?? "");
+  return {
+    current: tasks
+      .filter((task) => completedKey(task) === currentKey)
+      .sort(newestFirst),
+    previous: tasks
+      .filter((task) => completedKey(task) === previousKey)
+      .sort(newestFirst),
+    archived: tasks
+      .filter((task) => ![currentKey, previousKey].includes(completedKey(task)))
+      .sort(newestFirst),
+  };
+}
 function Drop({ id, children }: { id: string; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
@@ -66,6 +95,8 @@ function Card({
   checklistDone,
   checklistTotal,
   blockedBy,
+  workflowRun,
+  openRun,
 }: {
   task: Task;
   busy: boolean;
@@ -78,6 +109,8 @@ function Card({
   checklistDone: number;
   checklistTotal: number;
   blockedBy: string[];
+  workflowRun?: WorkflowRun;
+  openRun?: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: task.id,
@@ -135,6 +168,15 @@ function Card({
           ))}
         </div>
       )}
+      {workflowRun && (
+        <button
+          className={`card-run ${workflowRun.status}`}
+          onClick={() => openRun?.(workflowRun.id)}
+        >
+          <code>{workflowRun.run_code}</code>
+          <span>{workflowRun.status.replaceAll("_", " ")}</span>
+        </button>
+      )}
       {task.start_date && <p className="date">開始 {task.start_date}</p>}
       {task.due_at && (
         <p className="date">
@@ -184,6 +226,7 @@ export function Board({
   summaries,
   search,
   attachments,
+  workflows,
 }: {
   execute: Execute;
   onSignOut?: () => Promise<void>;
@@ -191,6 +234,7 @@ export function Board({
   summaries?: SummaryOperations;
   search?: SearchOperations;
   attachments?: AttachmentOperations;
+  workflows?: WorkflowOperations;
 }) {
   const [data, setData] = useState<Snapshot>({
     columns: [],
@@ -202,7 +246,13 @@ export function Board({
     history: [],
     notifications: [],
     preferences: {
-      module_order: ["tasks", "calendar", "notifications", "holidays"],
+      module_order: [
+        "tasks",
+        "calendar",
+        "ai_execution",
+        "notifications",
+        "holidays",
+      ],
       hidden_modules: [],
       updated_at: "",
     },
@@ -236,8 +286,19 @@ export function Board({
   } | null>(null);
   const [managing, setManaging] = useState<Column | null>(null);
   const [addColumn, setAddColumn] = useState(false);
+  const [workflowState, setWorkflowState] = useState(emptyWorkflowState);
+  const [workflowBusy, setWorkflowBusy] = useState(Boolean(workflows));
+  const [workflowError, setWorkflowError] = useState("");
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [view, setView] = useState<
-    "today" | "board" | "calendar" | "ai" | "summary" | "search" | "settings"
+    | "today"
+    | "board"
+    | "calendar"
+    | "ai"
+    | "execution"
+    | "summary"
+    | "search"
+    | "settings"
   >("today");
   const openTask = (taskId: string, noteId?: string, summaryId?: string) =>
     setEditingTarget({ taskId, noteId, summaryId });
@@ -280,6 +341,105 @@ export function Board({
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Google Calendar 操作失敗");
+      return false;
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+  async function runWorkflow(
+    action: string,
+    payload: Record<string, unknown> = {},
+  ) {
+    if (!workflows || workflowBusy) return false;
+    setWorkflowBusy(true);
+    setWorkflowError("");
+    try {
+      const next = await workflows.run(action, payload);
+      setWorkflowState(next);
+      if (!selectedRunId && next.runs[0]) setSelectedRunId(next.runs[0].id);
+      return true;
+    } catch (reason) {
+      setWorkflowError(
+        reason instanceof Error ? reason.message : String(reason),
+      );
+      return false;
+    } finally {
+      setWorkflowBusy(false);
+    }
+  }
+  useEffect(() => {
+    if (!workflows) {
+      setWorkflowBusy(false);
+      return;
+    }
+    let cancelled = false;
+    setWorkflowBusy(true);
+    workflows
+      .run("load")
+      .then((next) => {
+        if (cancelled) return;
+        setWorkflowState(next);
+        if (next.runs[0]) setSelectedRunId(next.runs[0].id);
+      })
+      .catch((reason) => {
+        if (!cancelled)
+          setWorkflowError(
+            reason instanceof Error ? reason.message : String(reason),
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setWorkflowBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workflows]);
+  async function createAiTask(draft: AITaskDraft): Promise<string | false> {
+    if (lock.current) return false;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    let createdTask: Task | undefined;
+    try {
+      const before = new Set(data.tasks.map((task) => task.id));
+      const next = await execute("create_task", {
+        ...draft,
+        due_at: null,
+        start_date: null,
+        estimated_minutes: null,
+        deliverable_type: null,
+        deliverable_value: null,
+      });
+      setData(next);
+      setLoaded(true);
+      createdTask = next.tasks.find((task) => !before.has(task.id));
+      if (!createdTask) throw new Error("Task 已儲存，但無法辨識新 Task");
+      if (!workflows) {
+        setNotice("Task 已建立；AI executor 尚未連接");
+        return "Task 已建立";
+      }
+      const nextWorkflow = await workflows.run("create_run", {
+        title: createdTask.title,
+        source: "AI Chat",
+        project: "PersonalWorkStation",
+        task_id: createdTask.id,
+        executor: "待連接",
+        input: { request: draft.description || draft.title },
+      });
+      setWorkflowState(nextWorkflow);
+      const createdRun = nextWorkflow.runs[0];
+      if (createdRun) setSelectedRunId(createdRun.id);
+      setNotice(`Task 與 ${createdRun?.run_code ?? "Run"} 已建立`);
+      return `Task 與 ${createdRun?.run_code ?? "Run"} 已建立`;
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : String(reason);
+      setError(
+        createdTask
+          ? `Task 已保留，但 Run 建立失敗：${message}`
+          : `${message}。資料尚未確認儲存，請重新整理確認後再試。`,
+      );
       return false;
     } finally {
       lock.current = false;
@@ -371,6 +531,12 @@ export function Board({
           AI 對話
         </button>
         <button
+          aria-current={view === "execution" ? "page" : undefined}
+          onClick={() => setView("execution")}
+        >
+          AI 執行中心
+        </button>
+        <button
           aria-current={view === "summary" ? "page" : undefined}
           onClick={() => setView("summary")}
         >
@@ -415,6 +581,13 @@ export function Board({
                 ? runCalendar(() => calendar.sync(data))
                 : Promise.resolve(false)
             }
+            createAiTask={createAiTask}
+            workflowState={workflowState}
+            openRun={(id) => {
+              setSelectedRunId(id);
+              setView("execution");
+            }}
+            aiTaskDisabled={!loaded || busy || workflowBusy}
           />
         </main>
       ) : view === "calendar" ? (
@@ -434,7 +607,27 @@ export function Board({
         </main>
       ) : view === "ai" ? (
         <main id="main-content">
-          <AIChat />
+          <AIChat
+            createTask={createAiTask}
+            taskCreationDisabled={!loaded || busy || workflowBusy}
+          />
+        </main>
+      ) : view === "execution" ? (
+        <main id="main-content">
+          {workflowError && (
+            <p className="error" role="alert">
+              {workflowError}
+            </p>
+          )}
+          <ExecutionCenter
+            state={workflowState}
+            busy={workflowBusy}
+            selectedRunId={selectedRunId}
+            selectRun={setSelectedRunId}
+            run={runWorkflow}
+            tasks={data.tasks}
+            openTask={openTask}
+          />
         </main>
       ) : view === "summary" ? (
         <main id="main-content">
@@ -448,10 +641,7 @@ export function Board({
         </main>
       ) : view === "search" ? (
         <main id="main-content">
-          <SearchView
-            operations={search}
-            openTask={openTask}
-          />
+          <SearchView operations={search} openTask={openTask} />
         </main>
       ) : view === "settings" ? (
         <main id="main-content">
@@ -518,6 +708,66 @@ export function Board({
                 const tasks = sortedTasks(
                   data.tasks.filter((t) => t.column_id === column.id),
                 );
+                const renderTaskCard = (task: Task) => {
+                  const index = tasks.findIndex((item) => item.id === task.id);
+                  return (
+                    <Card
+                      key={task.id}
+                      task={task}
+                      busy={busy}
+                      edit={() => openTask(task.id)}
+                      columns={data.columns}
+                      index={index}
+                      count={tasks.length}
+                      tags={data.tags.filter((tag) => tag.task_id === task.id)}
+                      checklistDone={
+                        data.checklist.filter(
+                          (item) => item.task_id === task.id && item.completed,
+                        ).length
+                      }
+                      checklistTotal={
+                        data.checklist.filter(
+                          (item) => item.task_id === task.id,
+                        ).length
+                      }
+                      blockedBy={data.relations
+                        .filter(
+                          (relation) =>
+                            relation.task_id === task.id &&
+                            relation.relation_type === "prerequisite",
+                        )
+                        .map((relation) =>
+                          data.tasks.find(
+                            (item) => item.id === relation.related_task_id,
+                          ),
+                        )
+                        .filter((item): item is Task =>
+                          Boolean(item && !item.completed_at),
+                        )
+                        .map((item) => {
+                          const relation = data.relations.find(
+                            (candidate) =>
+                              candidate.task_id === task.id &&
+                              candidate.related_task_id === item.id &&
+                              candidate.relation_type === "prerequisite",
+                          );
+                          return relation?.reason
+                            ? `${item.title}：${relation.reason}`
+                            : item.title;
+                        })}
+                      workflowRun={workflowState.runs.find(
+                        (item) => item.task_id === task.id,
+                      )}
+                      openRun={(id) => {
+                        setSelectedRunId(id);
+                        setView("execution");
+                      }}
+                      move={(column_id, position) =>
+                        requestMove(task, column_id, position)
+                      }
+                    />
+                  );
+                };
                 return (
                   <section
                     className="column"
@@ -569,49 +819,46 @@ export function Board({
                       {tasks.length === 0 && (
                         <p className="empty">將任務移到這裡</p>
                       )}
-                      {tasks.map((task, index) => (
-                        <Card
-                          key={task.id}
-                          task={task}
-                          busy={busy}
-                          edit={() => openTask(task.id)}
-                          columns={data.columns}
-                          index={index}
-                          count={tasks.length}
-                          tags={data.tags.filter(
-                            (tag) => tag.task_id === task.id,
-                          )}
-                          checklistDone={
-                            data.checklist.filter(
-                              (item) =>
-                                item.task_id === task.id && item.completed,
-                            ).length
-                          }
-                          checklistTotal={
-                            data.checklist.filter(
-                              (item) => item.task_id === task.id,
-                            ).length
-                          }
-                          blockedBy={data.relations
-                            .filter(
-                              (relation) =>
-                                relation.task_id === task.id &&
-                                relation.relation_type === "prerequisite",
-                            )
-                            .map((relation) =>
-                              data.tasks.find(
-                                (item) => item.id === relation.related_task_id,
-                              ),
-                            )
-                            .filter((item): item is Task =>
-                              Boolean(item && !item.completed_at),
-                            )
-                            .map((item) => item.title)}
-                          move={(column_id, position) =>
-                            requestMove(task, column_id, position)
-                          }
-                        />
-                      ))}
+                      {column.kind === "done"
+                        ? (() => {
+                            const groups = doneTaskGroups(tasks);
+                            return (
+                              <>
+                                <section
+                                  className="done-group"
+                                  aria-label="本月完成"
+                                >
+                                  <h3>本月</h3>
+                                  {groups.current.length ? (
+                                    groups.current.map(renderTaskCard)
+                                  ) : (
+                                    <p className="empty">本月尚無完成任務</p>
+                                  )}
+                                </section>
+                                <section
+                                  className="done-group"
+                                  aria-label="上月完成"
+                                >
+                                  <h3>上月</h3>
+                                  {groups.previous.length ? (
+                                    groups.previous.map(renderTaskCard)
+                                  ) : (
+                                    <p className="empty">上月尚無完成任務</p>
+                                  )}
+                                </section>
+                                {groups.archived.length > 0 && (
+                                  <details className="done-group archive-group">
+                                    <summary>
+                                      Archive{" "}
+                                      <span>{groups.archived.length}</span>
+                                    </summary>
+                                    {groups.archived.map(renderTaskCard)}
+                                  </details>
+                                )}
+                              </>
+                            );
+                          })()
+                        : tasks.map(renderTaskCard)}
                     </Drop>
                   </section>
                 );
@@ -651,6 +898,15 @@ export function Board({
             initialNoteId={editingTarget?.noteId}
             initialSummaryId={editingTarget?.summaryId}
             attachments={attachments}
+            workflowRuns={workflowState.runs.filter(
+              (item) => item.task_id === editing.id,
+            )}
+            openRun={(id) => {
+              setEditingTarget(null);
+              setSelectedRunId(id);
+              setView("execution");
+            }}
+            openTask={(id) => setEditingTarget({ taskId: id })}
             remove={async () => {
               if (await run("delete_task", { id: editing.id }))
                 setEditingTarget(null);

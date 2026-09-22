@@ -11,11 +11,14 @@ import calendarMigration from "../supabase/migrations/202609200004_google_calend
 import taskDetailsCommandFix from "../supabase/migrations/202609210001_restore_task_details_command.sql?raw";
 import m5Migration from "../supabase/migrations/202609210002_ai_summary_search.sql?raw";
 import m6Migration from "../supabase/migrations/202609210003_attachments_maintenance.sql?raw";
+import workflowMigration from "../supabase/migrations/202609220001_workflow_execution_center.sql?raw";
+import priorityRemindersMigration from "../supabase/migrations/202609220002_priority_reminders.sql?raw";
 import type { SummaryOperations, SummaryState } from "../src/summary";
 import type { SearchField, SearchResult } from "../src/search";
 import type { AttachmentOperations, AttachmentState } from "../src/attachments";
+import type { WorkflowState } from "../src/workflow";
 import "../src/style.css";
-const db = new PGlite("idb://m4-browser-tests-v1");
+const db = new PGlite("idb://workflow-browser-tests-v2");
 await db.waitReady;
 const exists = await db.query<{ exists: boolean }>(
   "select exists(select 1 from pg_tables where schemaname='public' and tablename='allowed_users')",
@@ -56,6 +59,14 @@ const hasM6 = await db.query<{ exists: boolean }>(
   "select exists(select 1 from pg_tables where schemaname='public' and tablename='task_attachments')",
 );
 if (!hasM6.rows[0].exists) await db.exec(m6Migration);
+const hasWorkflow = await db.query<{ exists: boolean }>(
+  "select exists(select 1 from pg_tables where schemaname='public' and tablename='workflow_runs')",
+);
+if (!hasWorkflow.rows[0].exists) await db.exec(workflowMigration);
+const hasPriorityReminders = await db.query<{ exists: boolean }>(
+  "select to_regprocedure('public.create_priority_due_reminders(uuid,timestamptz)') is not null as exists",
+);
+if (!hasPriorityReminders.rows[0].exists) await db.exec(priorityRemindersMigration);
 const execute: Execute = async (action, payload = {}) => {
   if (new URLSearchParams(location.search).get("fail") === action)
     throw new Error("測試用連線中斷");
@@ -213,6 +224,22 @@ const attachments: AttachmentOperations = {
       record_count: 20,
     }),
 };
+const workflowRun = async (
+  action: string,
+  payload: Record<string, unknown> = {},
+) => {
+  const state = await db.transaction(async (tx) => {
+    await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [user]);
+    await tx.exec("set local role authenticated");
+    const result = await tx.query<{ result: WorkflowState }>(
+      "select workflow_command($1,$2::jsonb) as result",
+      [action, JSON.stringify(payload)],
+    );
+    return result.rows[0].result;
+  });
+  await db.syncToFs();
+  return state;
+};
 createRoot(document.getElementById("root")!).render(
   <Board
     execute={execute}
@@ -276,5 +303,6 @@ createRoot(document.getElementById("root")!).render(
     summaries={summaries}
     search={{ search }}
     attachments={attachments}
+    workflows={{ run: workflowRun }}
   />,
 );

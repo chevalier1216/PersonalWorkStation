@@ -39,6 +39,17 @@ describe("M5 Summary and workspace history search", () => {
   });
 
   it("creates immutable timestamp versions with latest backlinks", async () => {
+    await expect(
+      ctx.runSummary("create", {
+        task_id: taskId,
+        title: "摘要",
+        decisions: [],
+        completed: [],
+        cancelled: [],
+        superseded: [],
+        content: "內容",
+      }),
+    ).rejects.toThrow(/具體且有意義/);
     let state = await ctx.runSummary("create", {
       task_id: taskId,
       title: "M5 發佈驗證結果",

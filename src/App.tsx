@@ -18,6 +18,7 @@ import {
   runDriveMaintenance,
   uploadAttachment,
 } from "./attachments";
+import { workflowCommand } from "./workflow";
 
 const googleCalendarScopes = [
   "openid",
@@ -146,6 +147,7 @@ export function App() {
         backup: () =>
           runDriveMaintenance("backup", session.provider_token ?? ""),
       }}
+      workflows={{ run: workflowCommand }}
       onSignOut={async () => {
         const { error } = await supabase!.auth.signOut();
         if (error) throw error;

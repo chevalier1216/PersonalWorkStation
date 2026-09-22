@@ -7,18 +7,28 @@ import {
   type Task,
 } from "./domain";
 import type { CalendarOperations } from "./Board";
-import { AIChat } from "./AIChat";
+import { AIChat, type AITaskDraft } from "./AIChat";
+import { ExecutionSummary } from "./ExecutionCenter";
+import type { WorkflowState } from "./workflow";
 
 type Run = (
   action: string,
   payload?: Record<string, unknown>,
 ) => Promise<boolean>;
-type ModuleId = "tasks" | "calendar" | "ai_chat" | "notifications" | "holidays";
+type ModuleId =
+  | "tasks"
+  | "calendar"
+  | "ai_chat"
+  | "ai_execution"
+  | "notifications"
+  | "holidays"
+  | "exchange_rates";
 
 const modules: Array<{ id: ModuleId; label: string }> = [
   { id: "tasks", label: "任務" },
   { id: "calendar", label: "Google Calendar" },
   { id: "ai_chat", label: "AI Chat" },
+  { id: "ai_execution", label: "AI 執行狀態" },
   { id: "notifications", label: "通知" },
   { id: "holidays", label: "假日提醒" },
 ];
@@ -72,10 +82,12 @@ function TaskRows({
   title,
   tasks,
   openTask,
+  futureStartDay,
 }: {
   title: string;
   tasks: Task[];
   openTask: (id: string) => void;
+  futureStartDay?: string;
 }) {
   return (
     <section className="today-group" aria-label={title}>
@@ -96,6 +108,9 @@ function TaskRows({
                 )}
                 {!task.due_at && task.start_date && (
                   <time>{task.start_date}</time>
+                )}
+                {futureStartDay && task.start_date === futureStartDay && (
+                  <span className="not-started">尚未開始</span>
                 )}
               </button>
             </li>
@@ -257,6 +272,10 @@ export function Today({
   run,
   calendar,
   syncCalendar,
+  createAiTask,
+  workflowState,
+  openRun,
+  aiTaskDisabled,
 }: {
   data: Snapshot;
   busy: boolean;
@@ -264,6 +283,10 @@ export function Today({
   run: Run;
   calendar?: CalendarOperations;
   syncCalendar: () => Promise<boolean>;
+  createAiTask: (draft: AITaskDraft) => Promise<string | false>;
+  workflowState: WorkflowState;
+  openRun: (id: string) => void;
+  aiTaskDisabled: boolean;
 }) {
   const [editingLayout, setEditingLayout] = useState(false);
   const [editingCalendars, setEditingCalendars] = useState(false);
@@ -339,6 +362,7 @@ export function Today({
                       taskDate(task, "start") === key,
                   )}
                   openTask={openTask}
+                  futureStartDay={key}
                 />
               );
             })}
@@ -441,8 +465,16 @@ export function Today({
     }
     if (id === "notifications")
       return <Notifications items={data.notifications} run={run} />;
+    if (id === "ai_execution")
+      return <ExecutionSummary state={workflowState} openRun={openRun} />;
     if (id === "ai_chat")
-      return <AIChat compact />;
+      return (
+        <AIChat
+          compact
+          createTask={createAiTask}
+          taskCreationDisabled={aiTaskDisabled}
+        />
+      );
     return (
       <section className="today-module" aria-label="假日提醒">
         <div className="module-heading">

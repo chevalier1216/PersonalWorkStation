@@ -1,5 +1,7 @@
 # V1 Production Rollout
 
+> 歷史 rollout 基線：本文件保留舊版 M1–M7 的 production 證據與未完成部署事項。自 `ver.26.09.22.1516` 起，產品完成判定改以 `docs/product/00_PRD_INDEX.md` 所列新版 PRD 為準；本文件不得用來宣稱新版 AI Execution Center 已完成。
+
 日期：2026-09-22
 
 本文件記錄 production 實況、正式變更順序與完成證據。它不改動 `docs/product/` 的產品決策；若有衝突，仍以既定文件權威順序為準。
@@ -40,6 +42,8 @@
 
 ## 變更順序
 
+> 下列 Phase A–D 是舊版 rollout 基線。新版 PRD 的新增項目依 Phase E 執行；凡與 `docs/product/00_PRD_INDEX.md` 衝突的舊步驟均已被取代。
+
 ### Phase A — M4–M6 database 與 Storage
 
 依序套用，任一步失敗即停止，不跳過：
@@ -62,7 +66,7 @@
 7. 執行容量與 metadata backup smoke，讀回 `PersonalWorkStation/Exports/YYYY/MM` 檔案並確認輸出不含 token、OAuth identifier 或 secret。
 8. 為 `holiday-sync.yml` 設定既有 publishable key 與獨立 `HOLIDAY_SYNC_SECRET`，手動觸發一次並確認 `calendar_sync_runs` 成功，之後才保留每週排程。
 
-### Phase C — ChatGPT 一般對話 browser handoff
+### Phase C — ChatGPT 一般對話 browser handoff（歷史，已被新 PRD 取代）
 
 1. [本機完成] 移除舊 `ai-chat`、`ai-summary` API flow、Chat persistence migration 與付費 API request contract。
 2. 驗證所有 AI 入口只開啟 ChatGPT 一般「對話」，且提示已預填。
@@ -78,11 +82,19 @@
 3. 將 `https://chevalier1216.github.io/PersonalWorkStation/` 加入 Supabase Auth redirect allowlist。
 4. 審查 feature branch diff 與 CI，取得 merge `main`／production deploy 明確授權。
 5. 合併 `main`，等待 Pages workflow 成功並記錄正式 URL 與 deployed SHA。
-6. 使用正式 URL 完成 `07-ACCEPTANCE-TESTS.md` 的 production smoke：登入、Today、Task CRUD／Board、Calendar、AI Chat、AI Summary、Search、附件／Drive、persistence、refresh 與錯誤隔離。
+6. 使用正式 URL 完成 `docs/product/07_ACCEPTANCE_AND_ROADMAP.md` 的 production smoke：登入、Today、Task CRUD／Board、Calendar、AI Chat、AI Execution、AI Summary、Search、附件／Drive、persistence、refresh 與錯誤隔離。
+
+### Phase E — PRD ver.26.09.22.1516
+
+1. 在測試環境依序套用 `202609220001_workflow_execution_center.sql`、`202609220002_priority_reminders.sql`，驗證 owner isolation、Run／Node／Event／Log／Artifact／Human Gate、提醒去重與 Summary Task relation。
+2. 套用 production 前再次確認 Supabase Free 配額與 migration preflight；正式套用需要既有 production 發布授權仍有效，並記錄 schema readback。
+3. 取得 executor bridge 產品決策後，完成 AI Chat → Task → Run → Verification → Artifact 的真實 end-to-end flow；沒有 bridge 時 Run 必須停在 `waiting_external`。
+4. 取得匯率來源、牌告型態與幣別決策後，才實作 Today 匯率模組及其 cache／failure isolation。
+5. 依 `docs/product/07_ACCEPTANCE_AND_ROADMAP.md` 重新執行新版 desktop、mobile 與 production smoke。
 
 ## 完成判定
 
-只有 Phase A–D 全部有 production 證據，且正式 URL smoke 通過，才能將 PersonalWorkStation V1 標記完成。Local／CI 成功不可替代 ChatGPT browser handoff、Drive 與正式 Pages 驗證。
+只有新版 authoritative acceptance 可執行項目全部有 production 證據，且 Phase E 的兩項規格缺口已完成決策與驗證，才能將 PersonalWorkStation V1 標記完成。Local／CI 成功不可替代 executor bridge、Drive 與正式 Pages 驗證。
 
 ## 官方費用與配額來源
 

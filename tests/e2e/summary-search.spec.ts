@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 
 async function openBoard(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "任務看板", exact: true }).click();
-  await expect(page.getByLabel("下一件要做的事")).toBeEnabled({ timeout: 30000 });
+  await expect(page.getByLabel("下一件要做的事")).toBeEnabled({
+    timeout: 30000,
+  });
 }
 
 async function saveSummary(
@@ -14,10 +16,12 @@ async function saveSummary(
   await dialog.getByLabel("已完成（每行一項）").fill("驗證 Task persistence");
   await dialog.getByLabel("與上一版不同的決策（每行一項）").fill("分階段發布");
   await dialog.getByLabel("完整摘要").fill(content);
-  await dialog.getByRole("button", { name: "保存 Summary Card" }).click();
+  await dialog.getByRole("button", { name: "建立摘要任務卡" }).click();
 }
 
-test("history search locates a Note and manual Summary versions persist", async ({ page }) => {
+test("history search locates a Note and manual Summary versions persist", async ({
+  page,
+}) => {
   await page.goto("/PersonalWorkStation/tests/fixture.html");
   await openBoard(page);
   const suffix = test.info().project.name;
@@ -47,10 +51,20 @@ test("history search locates a Note and manual Summary versions persist", async 
   expect(url.searchParams.get("prompt")).toContain(note);
 
   await saveSummary(dialog, "發佈準備與驗證結果", "完成持久化驗證。");
-  await expect(dialog.getByText("發佈準備與驗證結果", { exact: true })).toBeVisible();
+  await expect(
+    dialog.locator(".summary-heading strong", {
+      hasText: "發佈準備與驗證結果",
+    }),
+  ).toBeVisible();
   await saveSummary(dialog, "發佈準備與風險變更", "接下來分階段發布。");
-  await expect(dialog.getByText("發佈準備與風險變更", { exact: true })).toBeVisible();
-  await expect(dialog.getByRole("button", { name: /最新版本：v\./ })).toBeVisible();
+  await expect(
+    dialog.locator(".summary-heading strong", {
+      hasText: "發佈準備與風險變更",
+    }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: /最新版本：v\./ }),
+  ).toBeVisible();
   await expect(dialog.locator(".summary-card")).toHaveCount(2);
 
   await page.reload();
@@ -60,10 +74,14 @@ test("history search locates a Note and manual Summary versions persist", async 
   await expect(dialog.locator(".summary-card")).toHaveCount(2);
 });
 
-test("workspace history excludes copied ChatGPT conversations", async ({ page }) => {
+test("workspace history excludes copied ChatGPT conversations", async ({
+  page,
+}) => {
   await page.goto("/PersonalWorkStation/tests/fixture.html");
   await page.getByRole("button", { name: "歷史紀錄", exact: true }).click();
-  await expect(page.getByLabel("指定欄位").getByRole("option", { name: "AI 對話" })).toHaveCount(0);
+  await expect(
+    page.getByLabel("指定欄位").getByRole("option", { name: "AI 對話" }),
+  ).toHaveCount(0);
   await expect(page.getByText("ChatGPT 對話請在 ChatGPT 內搜尋")).toBeVisible();
 });
 
@@ -76,7 +94,11 @@ test("an incomplete Summary draft cannot change the Task", async ({ page }) => {
   await page.getByRole("button", { name: title, exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "任務詳細資料" });
   await dialog.getByLabel("Summary 標題").fill("只有標題");
-  await expect(dialog.getByRole("button", { name: "保存 Summary Card" })).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "建立摘要任務卡" }),
+  ).toBeDisabled();
   await dialog.getByLabel("關閉", { exact: true }).click();
-  await expect(page.getByRole("button", { name: title, exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: title, exact: true }),
+  ).toBeVisible();
 });

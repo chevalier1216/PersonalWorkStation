@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildChatGPTPrompt,
+  buildSummaryPrompt,
   buildChatGPTUrl,
   MAX_CHATGPT_PROMPT_LENGTH,
 } from "../src/chatgpt";
@@ -24,5 +25,13 @@ describe("ChatGPT standard chat handoff", () => {
     expect(() => buildChatGPTPrompt("x".repeat(MAX_CHATGPT_PROMPT_LENGTH + 1))).toThrow(
       `最多 ${MAX_CHATGPT_PROMPT_LENGTH} 字`,
     );
+  });
+
+  it("keeps raw elapsed time when asking AI for adjusted work time", () => {
+    const prompt = buildSummaryPrompt({ notes: ["等待外部授權 30 分鐘"] });
+    expect(prompt).toContain("Raw elapsed duration");
+    expect(prompt).toContain("Adjusted actual duration");
+    expect(prompt).toContain("Source Note");
+    expect(prompt).toContain("不可用調整值覆蓋");
   });
 });

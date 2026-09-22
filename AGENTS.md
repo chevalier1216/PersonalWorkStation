@@ -4,7 +4,8 @@
 
 - 所有工作必須遵守 `docs/product/08-EXECUTION-RULES.md`。
 - 只修改目前任務所需內容；不得改動任務範圍外已定案的產品決策、規格或行為。
-- 若文件衝突，依 `docs/product/00-PRODUCT-OVERVIEW.md` 定義的文件權威順序處理。
+- 產品規格一律由 `docs/product/00_PRD_INDEX.md` 進入，並以其列出的模組化 PRD 為 authoritative spec。
+- `docs/product/08-EXECUTION-RULES.md` 是 repository 執行政策，不覆寫產品 PRD。
 
 ## Repository 預設完成流程
 

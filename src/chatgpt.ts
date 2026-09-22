@@ -27,6 +27,7 @@ export function buildSummaryPrompt(context: unknown) {
     [
       "請整理下列單一 Task context。",
       "請輸出：具體標題、與上一版不同的決策、已完成、已取消、已取代、完整摘要。",
+      "若 Notes 提到等待、延誤或可扣除時間，再加上工時調整：Raw elapsed duration、Adjusted actual duration、Deducted duration、Reason、Source Note。必須保留原始 elapsed，不可用調整值覆蓋。",
       "不要假設未提供的事實，也不要建立或修改任何工作台資料。",
       "Task context：",
       JSON.stringify(context, null, 2),

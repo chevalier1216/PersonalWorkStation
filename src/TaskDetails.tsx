@@ -17,6 +17,7 @@ import {
   emptySummaryState,
   type AISummary,
   type SummaryOperations,
+  validateSummaryTitle,
 } from "./summary";
 import {
   emptyAttachmentState,
@@ -28,6 +29,7 @@ import {
   buildSummaryPrompt,
   copyChatGPTPrompt,
 } from "./chatgpt";
+import { workflowStatusLabels, type WorkflowRun } from "./workflow";
 
 type Run = (
   action: string,
@@ -63,6 +65,9 @@ export function TaskDetails({
   initialNoteId,
   initialSummaryId,
   attachments,
+  workflowRuns,
+  openRun,
+  openTask,
 }: {
   task: Task;
   data: Snapshot;
@@ -77,6 +82,9 @@ export function TaskDetails({
   initialNoteId?: string;
   initialSummaryId?: string;
   attachments?: AttachmentOperations;
+  workflowRuns: WorkflowRun[];
+  openRun: (id: string) => void;
+  openTask: (id: string) => void;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
@@ -124,6 +132,7 @@ export function TaskDetails({
   const [relationType, setRelationType] =
     useState<RelationType>("prerequisite");
   const [relatedTask, setRelatedTask] = useState("");
+  const [relationReason, setRelationReason] = useState("");
   const calendarLink = data.task_calendar_links.find(
     (item) => item.task_id === task.id,
   );
@@ -578,7 +587,14 @@ export function TaskDetails({
           {relations.map((item) => (
             <li key={item.id}>
               <span>{relationLabels[item.relation_type]}</span>
-              <strong>{taskName(item.related_task_id)}</strong>
+              <button
+                type="button"
+                className="relation-task-link"
+                onClick={() => openTask(item.related_task_id)}
+              >
+                {taskName(item.related_task_id)}
+              </button>
+              {item.reason && <small>{item.reason}</small>}
               <button
                 type="button"
                 aria-label={`移除關聯 ${taskName(item.related_task_id)}`}
@@ -600,9 +616,12 @@ export function TaskDetails({
                 task_id: task.id,
                 related_task_id: relatedTask,
                 relation_type: relationType,
+                reason: relationReason.trim(),
               }))
-            )
+            ) {
               setRelatedTask("");
+              setRelationReason("");
+            }
           }}
         >
           <select
@@ -630,6 +649,13 @@ export function TaskDetails({
                 </option>
               ))}
           </select>
+          <input
+            aria-label="阻擋原因（選填）"
+            value={relationReason}
+            maxLength={2000}
+            placeholder="例如：等待前置驗證"
+            onChange={(event) => setRelationReason(event.target.value)}
+          />
           <button disabled={busy || !relatedTask}>新增關聯</button>
         </form>
       </section>
@@ -712,6 +738,25 @@ export function TaskDetails({
         ) : (
           <p className="subtle">請先在 Today 同步並選擇要顯示的 Calendar。</p>
         )}
+      </section>
+
+      <section className="detail-section full-width">
+        <h3>AI Execution</h3>
+        <p className="subtle">
+          Task 可關聯多個 Run；執行細節統一在 AI 執行中心查看。
+        </p>
+        <ol className="task-run-list">
+          {workflowRuns.map((run) => (
+            <li key={run.id}>
+              <button type="button" onClick={() => openRun(run.id)}>
+                <code>{run.run_code}</code>
+                <strong>{run.title}</strong>
+                <span>{workflowStatusLabels[run.status]}</span>
+              </button>
+            </li>
+          ))}
+          {!workflowRuns.length && <li className="subtle">尚無關聯 Run</li>}
+        </ol>
       </section>
 
       <section className="detail-section full-width">
@@ -885,10 +930,13 @@ export function TaskDetails({
           </a>
         </div>
         <p className="subtle">
-          會開啟一般對話並複製目前 Task context。請確認「對話／高」後送出，再將結果貼回下方保存。
+          會開啟一般對話並複製目前 Task
+          context。請確認「對話／高」後送出，再將結果貼回下方保存。
         </p>
         {summaryPromptCopied && (
-          <p className="success" role="status">Summary 提示已複製。</p>
+          <p className="success" role="status">
+            Summary 提示已複製。
+          </p>
         )}
         {summaryError && (
           <p className="error" role="alert">
@@ -899,21 +947,35 @@ export function TaskDetails({
           className="summary-import"
           onSubmit={async (event) => {
             event.preventDefault();
-            if (!summaries || !summaryTitle.trim() || !summaryContent.trim())
+            if (!summaryTitle.trim() || !summaryContent.trim()) return;
+            const titleError = validateSummaryTitle(summaryTitle);
+            if (titleError) {
+              setSummaryError(titleError);
               return;
+            }
             setSummaryBusy(true);
             setSummaryError("");
             try {
-              setSummaryState(
-                await summaries.create(task.id, {
-                  title: summaryTitle.trim(),
-                  decisions: summaryLines(summaryDecisions),
-                  completed: summaryLines(summaryCompleted),
-                  cancelled: summaryLines(summaryCancelled),
-                  superseded: summaryLines(summarySuperseded),
-                  content: summaryContent.trim(),
-                }),
-              );
+              const payload = {
+                title: summaryTitle.trim(),
+                decisions: summaryLines(summaryDecisions),
+                completed: summaryLines(summaryCompleted),
+                cancelled: summaryLines(summaryCancelled),
+                superseded: summaryLines(summarySuperseded),
+                content: summaryContent.trim(),
+              };
+              const created = await run("create_summary_task", {
+                task_id: task.id,
+                title: payload.title,
+                decisions: summaryDecisions.trim(),
+                completed: summaryCompleted.trim(),
+                cancelled: summaryCancelled.trim(),
+                superseded: summarySuperseded.trim(),
+                content: payload.content,
+              });
+              if (!created) return;
+              if (summaries)
+                setSummaryState(await summaries.create(task.id, payload));
               setSummaryTitle("");
               setSummaryContent("");
               setSummaryDecisions("");
@@ -980,13 +1042,10 @@ export function TaskDetails({
           <button
             className="primary"
             disabled={
-              summaryBusy ||
-              !summaries ||
-              !summaryTitle.trim() ||
-              !summaryContent.trim()
+              summaryBusy || !summaryTitle.trim() || !summaryContent.trim()
             }
           >
-            {summaryBusy ? "保存中…" : "保存 Summary Card"}
+            {summaryBusy ? "建立中…" : "建立摘要任務卡"}
           </button>
         </form>
         <ol className="summary-timeline">

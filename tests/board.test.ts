@@ -2,6 +2,7 @@ import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import { database, alice, bob } from "./database";
 import { taskInput } from "../src/domain";
 import { normalizeSnapshot } from "../src/api";
+import { doneTaskGroups } from "../src/Board";
 describe("PostgreSQL board boundaries", () => {
   let ctx: Awaited<ReturnType<typeof database>>;
   beforeAll(async () => {
@@ -161,11 +162,15 @@ describe("PostgreSQL board boundaries", () => {
       task_id: first.id,
       related_task_id: related.id,
       relation_type: "prerequisite",
+      reason: "等待相關任務完成",
     });
     expect(s.tags).toHaveLength(1);
     expect(s.checklist[0]).toMatchObject({ title: "Verify", completed: false });
     expect(s.notes[0].content).toBe("Decision retained");
-    expect(s.relations[0]).toMatchObject({ related_task_id: related.id });
+    expect(s.relations[0]).toMatchObject({
+      related_task_id: related.id,
+      reason: "等待相關任務完成",
+    });
     s = await ctx.run("toggle_checklist", {
       id: s.checklist[0].id,
       completed: true,
@@ -211,7 +216,9 @@ describe("PostgreSQL board boundaries", () => {
     await ctx.run("add_note", { task_id: source.id, content: "do not copy" });
     const done = s.columns.find((column) => column.kind === "done")!;
     s = await ctx.run("move_task", { id: source.id, column_id: done.id });
-    const next = s.tasks.find((task) => task.recurrence_source_id === source.id)!;
+    const next = s.tasks.find(
+      (task) => task.recurrence_source_id === source.id,
+    )!;
     expect(next).toMatchObject({
       title: "Daily review",
       description: "Repeatable work",
@@ -221,19 +228,29 @@ describe("PostgreSQL board boundaries", () => {
       deliverable_type: null,
       deliverable_value: null,
     });
-    expect(s.tags.some((tag) => tag.task_id === next.id && tag.name === "repeat")).toBe(true);
+    expect(
+      s.tags.some((tag) => tag.task_id === next.id && tag.name === "repeat"),
+    ).toBe(true);
     expect(s.checklist.find((item) => item.task_id === next.id)).toMatchObject({
       title: "Review inbox",
       completed: false,
       due_date: "2026-09-21",
     });
     expect(s.notes.some((note) => note.task_id === next.id)).toBe(false);
-    expect(s.notifications.some((item) => item.type === "recurring_created" && item.task_id === next.id)).toBe(true);
+    expect(
+      s.notifications.some(
+        (item) => item.type === "recurring_created" && item.task_id === next.id,
+      ),
+    ).toBe(true);
     await ctx.run("move_task", { id: source.id, column_id: done.id });
     s = await ctx.run("load");
-    expect(s.tasks.filter((task) => task.recurrence_source_id === source.id)).toHaveLength(1);
+    expect(
+      s.tasks.filter((task) => task.recurrence_source_id === source.id),
+    ).toHaveLength(1);
     s = await ctx.run("delete_task", { id: source.id });
-    expect(s.tasks.find((task) => task.id === next.id)).toMatchObject({ recurrence_source_id: null });
+    expect(s.tasks.find((task) => task.id === next.id)).toMatchObject({
+      recurrence_source_id: null,
+    });
     const survivingOwner = await ctx.db.query<{ owner_id: string }>(
       "select owner_id::text from public.tasks where id=$1",
       [next.id],
@@ -242,7 +259,9 @@ describe("PostgreSQL board boundaries", () => {
   });
   it("notifies when a prerequisite completes and deduplicates the 15:00 reminder", async () => {
     let s = await ctx.run("create_task", { title: "M2 prerequisite" });
-    const prerequisite = s.tasks.find((task) => task.title === "M2 prerequisite")!;
+    const prerequisite = s.tasks.find(
+      (task) => task.title === "M2 prerequisite",
+    )!;
     s = await ctx.run("create_task", { title: "M2 dependent" });
     const dependent = s.tasks.find((task) => task.title === "M2 dependent")!;
     await ctx.run("add_relation", {
@@ -252,7 +271,12 @@ describe("PostgreSQL board boundaries", () => {
     });
     const done = s.columns.find((column) => column.kind === "done")!;
     s = await ctx.run("move_task", { id: prerequisite.id, column_id: done.id });
-    expect(s.notifications.some((item) => item.type === "task_unblocked" && item.task_id === dependent.id)).toBe(true);
+    expect(
+      s.notifications.some(
+        (item) =>
+          item.type === "task_unblocked" && item.task_id === dependent.id,
+      ),
+    ).toBe(true);
     s = await ctx.run("edit_task", {
       id: dependent.id,
       title: dependent.title,
@@ -276,7 +300,11 @@ describe("PostgreSQL board boundaries", () => {
       [alice, "2026-09-20T08:00:00.000Z"],
     );
     s = await ctx.run("load");
-    expect(s.notifications.filter((item) => item.dedupe_key === "unscheduled:2026-09-20")).toHaveLength(1);
+    expect(
+      s.notifications.filter(
+        (item) => item.dedupe_key === "unscheduled:2026-09-20",
+      ),
+    ).toHaveLength(1);
     s = await ctx.run("save_today_preferences", {
       module_order: ["notifications", "tasks", "holidays"],
       hidden_modules: ["holidays"],
@@ -287,6 +315,65 @@ describe("PostgreSQL board boundaries", () => {
     });
     s = await ctx.run("mark_all_notifications_read");
     expect(s.notifications.every((item) => item.read_at)).toBe(true);
+  });
+  it("creates deduplicated High and Urgent multi-stage due reminders", async () => {
+    let state = await ctx.run("create_task", { title: "Three day reminder" });
+    const threeDay = state.tasks.find(
+      (task) => task.title === "Three day reminder",
+    )!;
+    await ctx.run("edit_task", {
+      id: threeDay.id,
+      title: threeDay.title,
+      description: "",
+      priority: "High",
+      due_at: "2026-09-25T08:00:00.000Z",
+      start_date: null,
+      estimated_minutes: null,
+      deliverable_type: null,
+      deliverable_value: null,
+      recurrence_type: null,
+      recurrence_interval: null,
+      recurrence_unit: null,
+    });
+    state = await ctx.run("create_task", { title: "Five workday reminder" });
+    const fiveWorkdays = state.tasks.find(
+      (task) => task.title === "Five workday reminder",
+    )!;
+    await ctx.run("edit_task", {
+      id: fiveWorkdays.id,
+      title: fiveWorkdays.title,
+      description: "",
+      priority: "Urgent",
+      due_at: "2026-09-30T08:00:00.000Z",
+      start_date: null,
+      estimated_minutes: null,
+      deliverable_type: null,
+      deliverable_value: null,
+      recurrence_type: null,
+      recurrence_interval: null,
+      recurrence_unit: null,
+    });
+    await ctx.db.query(
+      "select public.create_priority_due_reminders($1,$2::timestamptz)",
+      [alice, "2026-09-22T07:00:00.000Z"],
+    );
+    await ctx.db.query(
+      "select public.create_priority_due_reminders($1,$2::timestamptz)",
+      [alice, "2026-09-22T08:00:00.000Z"],
+    );
+    state = await ctx.run("load");
+    expect(
+      state.notifications.filter((item) =>
+        item.dedupe_key.startsWith(`priority-due:${threeDay.id}:3-days`),
+      ),
+    ).toHaveLength(1);
+    expect(
+      state.notifications.filter((item) =>
+        item.dedupe_key.startsWith(
+          `priority-due:${fiveWorkdays.id}:5-workdays`,
+        ),
+      ),
+    ).toHaveLength(1);
   });
   it("replaces official calendar data atomically and reports refresh failures", async () => {
     const before = await ctx.db.query<{ count: number }>(
@@ -299,13 +386,19 @@ describe("PostgreSQL board boundaries", () => {
       "select count(*)::integer as count from public.calendar_days where extract(year from day)=2026",
     );
     expect(preserved.rows[0].count).toBe(before.rows[0].count);
-    const replaced = await ctx.db.query<{ count: number }>(`select public.replace_calendar_days(2026,
+    const replaced = await ctx.db.query<{
+      count: number;
+    }>(`select public.replace_calendar_days(2026,
       (select jsonb_agg(jsonb_build_object('region',region,'day',day,'day_type',day_type,'name',name,'source_url',source_url))
        from public.calendar_days where extract(year from day)=2026)) as count`);
     expect(replaced.rows[0].count).toBe(before.rows[0].count);
-    await ctx.db.query("select public.record_calendar_sync_failure('official source unavailable')");
+    await ctx.db.query(
+      "select public.record_calendar_sync_failure('official source unavailable')",
+    );
     const snapshot = await ctx.run("load");
-    expect(snapshot.notifications.some((item) => item.type === "calendar_failure")).toBe(true);
+    expect(
+      snapshot.notifications.some((item) => item.type === "calendar_failure"),
+    ).toBe(true);
   });
   it("persists Google Calendar selection, cached events, task links and retry state", async () => {
     let snapshot = await ctx.run("calendar_sync_success", {
@@ -343,41 +436,107 @@ describe("PostgreSQL board boundaries", () => {
       ],
     });
     expect(snapshot.google_calendars).toHaveLength(2);
-    expect(snapshot.google_events[0]).toMatchObject({ title: "M3 review", all_day: false });
+    expect(snapshot.google_events[0]).toMatchObject({
+      title: "M3 review",
+      all_day: false,
+    });
     expect(snapshot.google_calendar_sync.last_success_at).toBeTruthy();
     snapshot = await ctx.run("calendar_set_selections", {
       calendar_ids: ["work@example.test"],
     });
-    expect(snapshot.google_calendars.find((item) => item.calendar_id === "work@example.test")?.selected).toBe(true);
+    expect(
+      snapshot.google_calendars.find(
+        (item) => item.calendar_id === "work@example.test",
+      )?.selected,
+    ).toBe(true);
     snapshot = await ctx.run("create_task", {
       title: "Create Google event",
       start_date: "2026-09-22",
     });
-    const task = snapshot.tasks.find((item) => item.title === "Create Google event")!;
+    const task = snapshot.tasks.find(
+      (item) => item.title === "Create Google event",
+    )!;
     snapshot = await ctx.run("calendar_link_failure", {
       task_id: task.id,
       calendar_id: "work@example.test",
       message: "temporary Google error",
     });
-    expect(snapshot.task_calendar_links.find((item) => item.task_id === task.id)).toMatchObject({
+    expect(
+      snapshot.task_calendar_links.find((item) => item.task_id === task.id),
+    ).toMatchObject({
       sync_status: "failed",
       sync_error: "temporary Google error",
     });
-    expect(snapshot.notifications.some((item) => item.task_id === task.id && item.type === "calendar_failure")).toBe(true);
+    expect(
+      snapshot.notifications.some(
+        (item) => item.task_id === task.id && item.type === "calendar_failure",
+      ),
+    ).toBe(true);
     snapshot = await ctx.run("calendar_link_success", {
       task_id: task.id,
       calendar_id: "work@example.test",
       event_id: "event-task",
       html_link: "https://calendar.google.com/event?eid=task",
     });
-    expect(snapshot.task_calendar_links.find((item) => item.task_id === task.id)).toMatchObject({
+    expect(
+      snapshot.task_calendar_links.find((item) => item.task_id === task.id),
+    ).toMatchObject({
       event_id: "event-task",
       sync_status: "synced",
       sync_error: "",
     });
-    snapshot = await ctx.run("calendar_sync_failure", { message: "quota retry" });
+    snapshot = await ctx.run("calendar_sync_failure", {
+      message: "quota retry",
+    });
     expect(snapshot.google_events).toHaveLength(1);
     expect(snapshot.google_calendar_sync.last_error).toBe("quota retry");
+  });
+  it("creates an AI summary as a linked Task and records its location first", async () => {
+    let snapshot = await ctx.run("create_task", {
+      title: "Source task for summary",
+      description: "Original source context",
+      priority: "High",
+    });
+    const source = snapshot.tasks.find(
+      (item) => item.title === "Source task for summary",
+    )!;
+    snapshot = await ctx.run("create_summary_task", {
+      task_id: source.id,
+      title: "Production readiness decisions",
+      decisions: "Use staged release",
+      completed: "Persistence verification",
+      cancelled: "Single release",
+      superseded: "Old deployment plan",
+      content: "The release remains gated by production smoke tests.",
+    });
+    const summary = snapshot.tasks.find(
+      (item) => item.title === "Production readiness decisions",
+    )!;
+    expect(summary.id).not.toBe(source.id);
+    expect(summary.priority).toBe("High");
+    expect(summary.description).toContain(
+      "與上一版不同的決策\nUse staged release",
+    );
+    expect(summary.description).toContain("已完成\nPersistence verification");
+    expect(
+      snapshot.tasks.find((item) => item.id === source.id)!.description,
+    ).toMatch(new RegExp(`^AI 摘要卡：task:${summary.id}`));
+    expect(snapshot.relations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          task_id: source.id,
+          related_task_id: summary.id,
+          relation_type: "follow_up",
+          reason: "AI 摘要卡",
+        }),
+        expect.objectContaining({
+          task_id: summary.id,
+          related_task_id: source.id,
+          relation_type: "related",
+          reason: "來源 Task",
+        }),
+      ]),
+    );
   });
 });
 
@@ -393,7 +552,13 @@ describe("snapshot compatibility", () => {
       history: [],
       notifications: [],
       preferences: {
-        module_order: ["tasks", "calendar", "notifications", "holidays"],
+        module_order: [
+          "tasks",
+          "calendar",
+          "ai_execution",
+          "notifications",
+          "holidays",
+        ],
         hidden_modules: [],
         updated_at: "",
       },
@@ -407,5 +572,37 @@ describe("snapshot compatibility", () => {
         last_error: "",
       },
     });
+  });
+  it("groups Done tasks into current month, previous month and Archive", () => {
+    const task = (id: string, completed_at: string) => ({
+      id,
+      column_id: "done",
+      title: id,
+      description: "",
+      priority: "Regular" as const,
+      due_at: null,
+      start_date: null,
+      estimated_minutes: null,
+      deliverable_type: null,
+      deliverable_value: null,
+      recurrence_type: null,
+      recurrence_interval: null,
+      recurrence_unit: null,
+      recurrence_source_id: null,
+      position: 0,
+      completed_at,
+      created_at: completed_at,
+    });
+    const groups = doneTaskGroups(
+      [
+        task("current", "2026-09-20T00:00:00Z"),
+        task("previous", "2026-08-20T00:00:00Z"),
+        task("archive", "2026-07-20T00:00:00Z"),
+      ],
+      new Date("2026-09-22T00:00:00Z"),
+    );
+    expect(groups.current.map((item) => item.id)).toEqual(["current"]);
+    expect(groups.previous.map((item) => item.id)).toEqual(["previous"]);
+    expect(groups.archived.map((item) => item.id)).toEqual(["archive"]);
   });
 });

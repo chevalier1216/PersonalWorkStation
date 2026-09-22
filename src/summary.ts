@@ -18,6 +18,16 @@ export type AISummary = {
 export type SummaryState = { summaries: AISummary[] };
 export const emptySummaryState: SummaryState = { summaries: [] };
 
+const genericSummaryTitles = new Set(["摘要", "進度整理", "工作摘要"]);
+
+export function validateSummaryTitle(value: string): string {
+  const title = value.trim();
+  if (!title) return "請輸入 Summary 標題";
+  if (genericSummaryTitles.has(title))
+    return "請使用具體且有意義的 Summary 標題";
+  return "";
+}
+
 export function normalizeSummaryState(
   value?: Partial<SummaryState> | null,
 ): SummaryState {

@@ -2,37 +2,43 @@ import { useMemo, useState } from "react";
 import {
   buildChatGPTPrompt,
   buildChatGPTUrl,
-  copyChatGPTPrompt,
   MAX_CHATGPT_PROMPT_LENGTH,
 } from "./chatgpt";
+import type { Priority } from "./domain";
+
+export type AITaskDraft = {
+  title: string;
+  description: string;
+  priority: Priority;
+};
 
 export function AIChat({
   compact = false,
+  createTask,
+  taskCreationDisabled = false,
 }: {
   compact?: boolean;
-  [key: string]: unknown;
+  createTask?: (draft: AITaskDraft) => Promise<string | false>;
+  taskCreationDisabled?: boolean;
 }) {
   const [message, setMessage] = useState("");
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
+  const [draftPriority, setDraftPriority] = useState<Priority>("Regular");
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftSaved, setDraftSaved] = useState("");
   const handoff = useMemo(() => {
     if (!message.trim()) return null;
     try {
       const prompt = buildChatGPTPrompt(message);
       return { prompt, url: buildChatGPTUrl(prompt) };
     } catch (reason) {
-      return { error: reason instanceof Error ? reason.message : String(reason) };
+      return {
+        error: reason instanceof Error ? reason.message : String(reason),
+      };
     }
   }, [message]);
-
-  async function prepare() {
-    if (!handoff || "error" in handoff) return;
-    setError("");
-    const success = await copyChatGPTPrompt(handoff.prompt);
-    setCopied(success);
-    if (!success)
-      setError("瀏覽器未允許複製；ChatGPT 開啟後請從工作台手動複製內容。");
-  }
 
   return (
     <section
@@ -41,38 +47,40 @@ export function AIChat({
     >
       <div className="module-heading">
         <div>
-          <p className="eyebrow">CHATGPT</p>
-          <h2>{compact ? "用一般對話快問" : "在 ChatGPT 繼續"}</h2>
-          <p className="subtle">一般對話 · GPT-5.6 Sol · High</p>
+          <p className="eyebrow">AI CHAT</p>
+          <h2>{compact ? "AI 快問與執行入口" : "AI 對話"}</h2>
+          <p className="subtle">工作臺內建立 Task 與可追蹤 Run</p>
         </div>
       </div>
       <div className="chat-panel">
         <p>
-          工作台會開啟 ChatGPT 網頁並嘗試預填內容；同時複製提示，預填失敗時可直接貼上。
+          輸入需求後可先以相容的 ChatGPT 網頁入口討論，或直接在下方建立 Task 與
+          Run。
         </p>
         <p className="subtle">
-          開啟後請確認上方選的是「對話」，推理強度顯示「高」，再自行送出。不要切換至 Work。
+          網頁入口只用於相容問答，不代表 Run 已執行。尚未連接 executor 時，Run
+          會如實顯示 Waiting External。
         </p>
         <label>
-          {compact ? "想問什麼" : "交給 ChatGPT 的內容"}
+          {compact ? "想問什麼" : "需求或問題"}
           <textarea
             value={message}
             maxLength={MAX_CHATGPT_PROMPT_LENGTH}
             placeholder="例如：請根據這段工作紀錄整理下一步"
             onChange={(event) => {
               setMessage(event.target.value);
-              setCopied(false);
               setError("");
             }}
           />
         </label>
         {handoff && "error" in handoff && (
-          <p className="error" role="alert">{handoff.error}</p>
+          <p className="error" role="alert">
+            {handoff.error}
+          </p>
         )}
-        {error && <p className="error" role="alert">{error}</p>}
-        {copied && (
-          <p className="success" role="status">
-            提示已複製。若 ChatGPT 沒有自動帶入，請貼上後送出。
+        {error && (
+          <p className="error" role="alert">
+            {error}
           </p>
         )}
         {handoff && !("error" in handoff) ? (
@@ -81,7 +89,6 @@ export function AIChat({
             href={handoff.url}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => void prepare()}
           >
             在 ChatGPT 開啟
           </a>
@@ -89,6 +96,87 @@ export function AIChat({
           <button className="primary" disabled>
             在 ChatGPT 開啟
           </button>
+        )}
+        {createTask && (
+          <form
+            className="ai-task-import"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (!draftTitle.trim() || savingDraft) return;
+              setSavingDraft(true);
+              setDraftSaved("");
+              setError("");
+              try {
+                const saved = await createTask({
+                  title: draftTitle.trim(),
+                  description: draftDescription.trim(),
+                  priority: draftPriority,
+                });
+                if (saved) {
+                  setDraftTitle("");
+                  setDraftDescription("");
+                  setDraftPriority("Regular");
+                  setDraftSaved(saved);
+                }
+              } catch (reason) {
+                setError(
+                  reason instanceof Error ? reason.message : String(reason),
+                );
+              } finally {
+                setSavingDraft(false);
+              }
+            }}
+          >
+            <h3>建立 Task 與 Run</h3>
+            <p className="subtle">
+              確認需求後才建立 Task 與關聯 Run；可從 AI 執行中心查看狀態。
+            </p>
+            <label>
+              Task 標題
+              <input
+                value={draftTitle}
+                maxLength={300}
+                onChange={(event) => {
+                  setDraftTitle(event.target.value);
+                  setDraftSaved("");
+                }}
+              />
+            </label>
+            <label>
+              Task 說明（選填）
+              <textarea
+                value={draftDescription}
+                maxLength={20000}
+                onChange={(event) => setDraftDescription(event.target.value)}
+              />
+            </label>
+            <label>
+              優先程度
+              <select
+                value={draftPriority}
+                onChange={(event) =>
+                  setDraftPriority(event.target.value as Priority)
+                }
+              >
+                <option value="Regular">一般</option>
+                <option value="High">重要</option>
+                <option value="Urgent">緊急</option>
+              </select>
+            </label>
+            <button
+              className="primary"
+              disabled={
+                taskCreationDisabled || savingDraft || !draftTitle.trim()
+              }
+            >
+              {savingDraft ? "建立中…" : "確認建立 Task"}
+            </button>
+            {draftSaved && (
+              <p className="success" role="status">
+                {draftSaved}，可到任務看板或 AI 執行中心查看。
+              </p>
+            )}
+          </form>
         )}
       </div>
     </section>

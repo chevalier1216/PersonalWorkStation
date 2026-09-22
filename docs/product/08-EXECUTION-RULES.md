@@ -10,10 +10,10 @@
 
 收到 Goal 後：
 
-1. 先讀 `00-PRODUCT-OVERVIEW.md`
-2. 讀該 Milestone 對應 Domain spec
-3. 讀 `06-TECHNICAL-ARCHITECTURE.md`
-4. 讀 `07-ACCEPTANCE-TESTS.md`
+1. 先讀 `00_PRD_INDEX.md`
+2. 讀目前工作對應的 authoritative module
+3. 讀 `06_DATA_INTEGRATIONS_ARCHITECTURE.md`
+4. 讀 `07_ACCEPTANCE_AND_ROADMAP.md`
 5. 讀本文件
 6. 檢查目前 repo 狀態
 7. 建立最小可驗證實作計畫
@@ -23,30 +23,17 @@
 11. 重跑驗證
 12. 通過後再進下一工作
 
-## Milestone 建議順序
+## V1 實作順序
 
-### M1
-Task + Board + Persistence
+1. 保留並回歸驗證既有 Task、Today、Calendar、搜尋、附件與封存能力。
+2. 補齊新版提醒規則與首頁模組。
+3. 建立 Workflow Run / Node / Event / Log / Artifact / Human Gate 資料模型。
+4. 完成 Runs、Graph、Timeline、Detail 與 Today AI 執行狀態。
+5. 完成 Task、Calendar、GitHub execution state 與 Run 的關聯。
+6. 接上可驗證且符合 Cost Guardrail 的 executor bridge。
+7. 完成正式部署與 `07_ACCEPTANCE_AND_ROADMAP.md` 全項 smoke test。
 
-### M2
-Today + Notification + Recurring
-
-### M3
-Google Calendar
-
-### M4
-ChatGPT 一般對話瀏覽器 handoff + AI Task 草稿確認
-
-### M5
-AI Summary 瀏覽器 handoff + 工作台歷史搜尋
-
-### M6
-Attachments + Drive Archive + Maintenance
-
-### M7
-Responsive + UI Polish + Production Hardening
-
-每個 Milestone 結束時都必須仍為可執行產品。
+每一階段結束時都必須仍為可執行產品，且不得重做已由現況證據證明完成的功能。
 
 ## Terminal Verification
 
@@ -96,14 +83,12 @@ npm run build
 
 確認仍在免費方案或免費額度內的操作可正常執行。接近、即將或可能超出免費額度時，必須在產生費用前停止並提前通知使用者。
 
-### ChatGPT V1 額度邊界
+### AI Execution V1 額度邊界
 
-- V1 AI 功能使用使用者現有 ChatGPT 訂閱的一般對話額度。
-- 必須開啟一般「對話」，使用 GPT-5.6 Sol High。
-- 不得切換至 Work 或消耗 Work 額度。
-- 不得建立、要求或使用 OpenAI API key。
-- 不得因額度不足自動升級方案、購買 credits 或改走按 token 計費 API。
-- 一般對話額度接近上限、無法使用 High 或需要新增費用時，依 Cost Guardrail 停止並通知使用者。
+- V1 不得把額外付費 API 當成必要依賴。
+- 未經使用者明確授權，不得建立 API key、購買 credits、升級方案或啟用按量計費 executor。
+- Chat、Work、Codex、GitHub 或其他 executor bridge 必須先確認可用權限與費用邊界；接近既有免費或訂閱額度時依 Cost Guardrail 停止並通知使用者。
+- Executor bridge 尚未接通時必須標示 manual blocker 或 Waiting External，不得以模擬回覆宣稱真實執行完成。
 
 ## GitHub Authentication Guardrail（硬性執行規則）
 
@@ -158,7 +143,10 @@ npm run build
 → Today 正常
 → Task CRUD / Board 正常
 → Calendar 正常
-→ ChatGPT 一般對話瀏覽器 handoff 正常
+→ AI Chat 建立或觸發 Task / Run
+→ Run / Node / Graph / Timeline / Human Gate 正常
+→ Task / Calendar / GitHub execution state 與 Run 關聯正常
+→ Verification gate 正常
 → Persistence 正常
 → Refresh 正常
 → E2E 通過
@@ -167,16 +155,17 @@ npm run build
 
 ## Goal 下發範例
 
-實作 Calendar Milestone 時，只需讀：
+實作 Calendar 與 Run 整合時，只需讀：
 
 ```text
-00-PRODUCT-OVERVIEW.md
-02-CALENDAR.md
-06-TECHNICAL-ARCHITECTURE.md
-07-ACCEPTANCE-TESTS.md
+00_PRD_INDEX.md
+03_CALENDAR_REMINDERS.md
+05_AI_EXECUTION_CENTER.md
+06_DATA_INTEGRATIONS_ARCHITECTURE.md
+07_ACCEPTANCE_AND_ROADMAP.md
 08-EXECUTION-RULES.md
 ```
 
-不應為一個 Calendar 任務把所有其他 Domain spec 全塞入 Context。
+不應為一個 Calendar 任務把所有其他 module 全塞入 Context。
 
 這是這組文件拆分的主要目的。

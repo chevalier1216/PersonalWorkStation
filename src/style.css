@@ -750,6 +750,17 @@ dialog {
   flex: 1;
   overflow-wrap: anywhere;
 }
+.relation-task-link {
+  flex: 1;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .checklist input {
   width: auto;
 }
@@ -1029,6 +1040,209 @@ dialog::backdrop {
 .gate p {
   color: #c0c9d6;
 }
+.ai-task-import {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #a6b6cd2e;
+}
+.ai-task-import h3,
+.ai-task-import p {
+  margin: 0;
+}
+.not-started {
+  color: #a9c9f0;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+.done-group {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.done-group > h3,
+.done-group > summary {
+  margin: 0;
+  color: #9facbe;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.archive-group > summary {
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.card-run {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 9px;
+  font-size: 0.72rem;
+}
+.card-run.waiting_human,
+.workflow-status.waiting_human {
+  color: #f1c68a;
+}
+.card-run.failed,
+.workflow-status.failed {
+  color: #efb6bd;
+}
+.execution-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.execution-tabs button[aria-current="page"] {
+  background: #7e9fc64d;
+  border-color: #a9c9f088;
+}
+.execution-runs-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 18px;
+}
+.run-create,
+.run-filters,
+.workflow-detail > section,
+.human-gate {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #a6b6cd2e;
+  border-radius: 14px;
+  background: #a6b6cd08;
+}
+.run-create h2,
+.workflow-detail h2,
+.workflow-detail h3,
+.workflow-detail h4 {
+  margin: 0;
+}
+.run-filters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
+}
+.run-list,
+.workflow-timeline,
+.task-run-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.run-list button,
+.task-run-list button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px 12px;
+  text-align: left;
+}
+.run-list button.selected {
+  border-color: #a9c9f088;
+}
+.run-list small {
+  grid-column: 1 / -1;
+  color: #9facbe;
+}
+.workflow-graph {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 18px;
+  border: 1px solid #a6b6cd2e;
+  border-radius: 14px;
+  background: #1f242c99;
+}
+.graph-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.workflow-node {
+  min-width: 150px;
+  min-height: 96px;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+}
+.workflow-node.running,
+.workflow-node.selected {
+  border-color: #8db9edaa;
+  box-shadow: 0 0 0 2px #6e9fd52b;
+}
+.workflow-node.success {
+  border-color: #78b89477;
+}
+.workflow-node.failed {
+  border-color: #d18b9577;
+}
+.graph-edge {
+  color: #7f8da1;
+}
+.workflow-timeline li {
+  display: grid;
+  grid-template-columns: minmax(150px, auto) 1fr auto;
+  gap: 12px;
+  padding: 12px 14px;
+  border-left: 2px solid #7895b2;
+  background: #a6b6cd08;
+}
+.workflow-timeline time,
+.workflow-timeline small {
+  color: #9facbe;
+}
+.workflow-detail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.workflow-detail pre {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 10px;
+  border-radius: 8px;
+  background: #1d2229;
+}
+.workflow-detail dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+}
+.workflow-detail dd {
+  margin: 0;
+}
+.execution-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.execution-summary-grid section {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #a6b6cd2e;
+  border-radius: 12px;
+}
+.execution-summary-grid h3 {
+  margin: 0;
+  font-size: 0.86rem;
+}
+.execution-summary-grid button {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 8px;
+}
+
 @media (max-width: 700px) {
   header {
     padding: 18px;
@@ -1128,5 +1342,16 @@ dialog::backdrop {
   }
   .today-group li time {
     grid-column: 1 / -1;
+  }
+  .execution-runs-layout,
+  .workflow-detail,
+  .execution-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .run-filters {
+    grid-template-columns: 1fr;
+  }
+  .workflow-timeline li {
+    grid-template-columns: 1fr;
   }
 }

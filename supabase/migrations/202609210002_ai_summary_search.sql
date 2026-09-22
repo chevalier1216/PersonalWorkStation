@@ -5,7 +5,10 @@ create table public.ai_summaries (
   previous_summary_id uuid references public.ai_summaries(id) on delete set null,
   latest_summary_id uuid references public.ai_summaries(id) on delete set null,
   version_label text not null,
-  title text not null check (length(trim(title)) between 1 and 300),
+  title text not null check (
+    length(trim(title)) between 1 and 300
+    and trim(title) not in ('摘要','進度整理','工作摘要')
+  ),
   decisions text[] not null default '{}',
   completed text[] not null default '{}',
   cancelled text[] not null default '{}',
@@ -52,6 +55,9 @@ begin
   if action='create' then
     target_task:=(payload->>'task_id')::uuid;
     if not exists(select 1 from public.tasks where owner_id=actor and id=target_task) then raise exception '找不到任務'; end if;
+    if trim(coalesce(payload->>'title','')) in ('','摘要','進度整理','工作摘要') then
+      raise exception '請使用具體且有意義的 Summary 標題';
+    end if;
     select id into previous from public.ai_summaries where owner_id=actor and task_id=target_task order by created_at desc limit 1;
     base_label:='v.'||to_char(clock_timestamp() at time zone 'Asia/Taipei','YY.MM.DD.HH24MI');
     select count(*)::integer into suffix from public.ai_summaries where owner_id=actor and task_id=target_task and version_label like base_label||'%';

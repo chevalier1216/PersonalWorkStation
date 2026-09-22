@@ -1,15 +1,15 @@
 # PersonalWorkStation
 
-單人使用的 Web AI 工作臺。權威規格位於 [docs/product](docs/product/00-PRODUCT-OVERVIEW.md)，各 Milestone 計畫與交付證據位於 `docs/`。
+單人使用的 Web AI 工作臺。權威規格入口是 [00_PRD_INDEX.md](docs/product/00_PRD_INDEX.md)，版本為 `ver.26.09.22.1516`。各階段計畫與交付證據位於 `docs/`。
 
 目前狀態：
 
 - M1 Task / Board / Persistence 與 M2 Today / Notification / Recurring 已完成 production 驗證。
 - M3 Google Calendar 已完成 production migration、指定帳號 OAuth 與實際 event smoke test。
-- M4／M5 已改為使用現有 ChatGPT 訂閱的一般對話 browser handoff（GPT-5.6 Sol High），不使用 Work 或 OpenAI API；舊付費 API source、migration 與測試已移除。Summary 由使用者帶回工作台建立版本卡。M6 Attachments / Drive Archive / Maintenance 已完成本機實作，尚未部署 production migration／Edge Functions。
-- M7 Responsive / UI Polish / Production Hardening 已補齊七個主導覽頁面及 GitHub Pages workflow；正式站必須在 production 設定、合併、部署與 smoke test 後才算完成。
+- 舊版 M4–M7 已完成的 browser handoff、Summary、搜尋、附件、封存、responsive 與 Pages workflow 保留為既有成果。新版 AI Execution Center 的本機 Run／Node／Graph／Timeline／Human Gate 實作已完成；真實 executor bridge 與 production migration／smoke 尚未完成。
+- 正式站必須在新版 Run／Node／Graph／Timeline／Human Gate、提醒、匯率、production 設定、部署與 smoke test 全部通過後才算 V1 完成。
 
-詳細狀態見 `docs/M2-PRODUCTION-STATUS.md`、`docs/M3-STATUS.md`、`docs/M4-STATUS.md`、`docs/M5-STATUS.md`、`docs/M6-STATUS.md` 與 `docs/M7-STATUS.md`。
+舊版完成證據仍見 `docs/M2-PRODUCTION-STATUS.md` 至 `docs/M7-STATUS.md`；這些是歷史實作紀錄，不覆寫新版 authoritative PRD。
 
 ## 本機啟動
 

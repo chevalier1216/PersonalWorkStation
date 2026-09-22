@@ -25,7 +25,13 @@ export function normalizeSnapshot(snapshot: Partial<Snapshot>): Snapshot {
     history: snapshot.history ?? [],
     notifications: snapshot.notifications ?? [],
     preferences: snapshot.preferences ?? {
-      module_order: ["tasks", "calendar", "notifications", "holidays"],
+      module_order: [
+        "tasks",
+        "calendar",
+        "ai_execution",
+        "notifications",
+        "holidays",
+      ],
       hidden_modules: [],
       updated_at: "",
     },
