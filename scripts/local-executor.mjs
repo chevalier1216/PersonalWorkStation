@@ -86,7 +86,7 @@ async function execute(body) {
   const temp = await mkdtemp(join(tmpdir(), "pws-executor-"));
   const resultFile = join(temp, "result.json");
   try {
-    const executable = process.platform === "win32" ? "codex.cmd" : "codex";
+    const executable = process.platform === "win32" ? "codex.exe" : "codex";
     const args = [
       "exec",
       "-C",

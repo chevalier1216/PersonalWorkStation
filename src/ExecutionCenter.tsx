@@ -332,7 +332,9 @@ export function ExecutionCenter({
                 {selectedRun.error}
               </p>
             )}
-            {selectedRun.status === "waiting_external" && (
+            {(["waiting_external", "queued", "retrying"] as const).includes(
+              selectedRun.status as "waiting_external" | "queued" | "retrying",
+            ) && (
               <div className="local-executor-action">
                 <button
                   className="primary"
