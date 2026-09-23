@@ -16,6 +16,7 @@ export function createLocalExecutor(options: {
     async execute(runId) {
       const response = await fetch(`${bridgeUrl}/execute`, {
         method: "POST",
+        targetAddressSpace: "loopback",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           runId,
@@ -23,7 +24,7 @@ export function createLocalExecutor(options: {
           supabaseUrl: options.supabaseUrl,
           publishableKey: options.publishableKey,
         }),
-      });
+      } as RequestInit & { targetAddressSpace: "loopback" });
       const body = (await response.json().catch(() => ({}))) as {
         error?: string;
       };

@@ -209,6 +209,7 @@ const server = createServer(async (request, response) => {
     "access-control-allow-origin": origin,
     "access-control-allow-headers": "content-type",
     "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-private-network": "true",
     "content-type": "application/json; charset=utf-8",
   };
   if (request.method === "OPTIONS") {
