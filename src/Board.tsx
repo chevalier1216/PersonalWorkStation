@@ -25,6 +25,7 @@ import {
   type Snapshot,
   type Kind,
   type Priority,
+  type GoogleCalendarEvent,
 } from "./domain";
 import { TaskDetails } from "./TaskDetails";
 import { Today } from "./Today";
@@ -39,9 +40,13 @@ import { SummaryView } from "./SummaryView";
 import { ExecutionCenter } from "./ExecutionCenter";
 import {
   emptyWorkflowState,
+  runDuration,
   type WorkflowOperations,
+  type WorkflowNode,
   type WorkflowRun,
 } from "./workflow";
+import type { ExchangeRateOperations } from "./exchangeRates";
+import type { LocalExecutorOperations } from "./localExecutor";
 export type Execute = (
   action: string,
   payload?: Record<string, unknown>,
@@ -96,6 +101,7 @@ function Card({
   checklistTotal,
   blockedBy,
   workflowRun,
+  workflowNode,
   openRun,
 }: {
   task: Task;
@@ -110,6 +116,7 @@ function Card({
   checklistTotal: number;
   blockedBy: string[];
   workflowRun?: WorkflowRun;
+  workflowNode?: WorkflowNode;
   openRun?: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
@@ -175,6 +182,9 @@ function Card({
         >
           <code>{workflowRun.run_code}</code>
           <span>{workflowRun.status.replaceAll("_", " ")}</span>
+          <small>
+            {workflowNode?.name ?? "無目前節點"} · {runDuration(workflowRun)} 秒
+          </small>
         </button>
       )}
       {task.start_date && <p className="date">開始 {task.start_date}</p>}
@@ -227,6 +237,8 @@ export function Board({
   search,
   attachments,
   workflows,
+  exchangeRates,
+  localExecutor,
 }: {
   execute: Execute;
   onSignOut?: () => Promise<void>;
@@ -235,6 +247,8 @@ export function Board({
   search?: SearchOperations;
   attachments?: AttachmentOperations;
   workflows?: WorkflowOperations;
+  exchangeRates?: ExchangeRateOperations;
+  localExecutor?: LocalExecutorOperations;
 }) {
   const [data, setData] = useState<Snapshot>({
     columns: [],
@@ -252,6 +266,7 @@ export function Board({
         "ai_execution",
         "notifications",
         "holidays",
+        "exchange_rates",
       ],
       hidden_modules: [],
       updated_at: "",
@@ -446,6 +461,29 @@ export function Board({
       setBusy(false);
     }
   }
+  async function createCalendarRun(event: GoogleCalendarEvent) {
+    const link = data.task_calendar_links.find(
+      (item) =>
+        item.calendar_id === event.calendar_id &&
+        item.event_id === event.event_id,
+    );
+    const created = await runWorkflow("create_run", {
+      title: `${event.title} · Calendar trigger`,
+      source: "Google Calendar",
+      project: "PersonalWorkStation",
+      task_id: link?.task_id ?? null,
+      executor: "待連接",
+      input: {
+        calendar_id: event.calendar_id,
+        event_id: event.event_id,
+        start_at: event.start_at,
+        start_date: event.start_date,
+        trigger: "calendar_event",
+      },
+    });
+    if (created) setView("execution");
+    return created;
+  }
   useEffect(() => {
     void run("load");
   }, [execute]);
@@ -588,6 +626,8 @@ export function Board({
               setView("execution");
             }}
             aiTaskDisabled={!loaded || busy || workflowBusy}
+            createCalendarRun={createCalendarRun}
+            exchangeRates={exchangeRates}
           />
         </main>
       ) : view === "calendar" ? (
@@ -603,6 +643,7 @@ export function Board({
                 : Promise.resolve(false)
             }
             openTask={(id) => openTask(id)}
+            createCalendarRun={createCalendarRun}
           />
         </main>
       ) : view === "ai" ? (
@@ -627,6 +668,15 @@ export function Board({
             run={runWorkflow}
             tasks={data.tasks}
             openTask={openTask}
+            executeLocal={
+              localExecutor
+                ? async (runId) => {
+                    const next = await localExecutor.execute(runId);
+                    setWorkflowState(next);
+                    return next;
+                  }
+                : undefined
+            }
           />
         </main>
       ) : view === "summary" ? (
@@ -758,6 +808,14 @@ export function Board({
                       workflowRun={workflowState.runs.find(
                         (item) => item.task_id === task.id,
                       )}
+                      workflowNode={(() => {
+                        const taskRun = workflowState.runs.find(
+                          (item) => item.task_id === task.id,
+                        );
+                        return workflowState.nodes.find(
+                          (item) => item.id === taskRun?.current_node_id,
+                        );
+                      })()}
                       openRun={(id) => {
                         setSelectedRunId(id);
                         setView("execution");

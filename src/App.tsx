@@ -19,6 +19,8 @@ import {
   uploadAttachment,
 } from "./attachments";
 import { workflowCommand } from "./workflow";
+import { loadExchangeRates, refreshExchangeRates } from "./exchangeRates";
+import { createLocalExecutor } from "./localExecutor";
 
 const googleCalendarScopes = [
   "openid",
@@ -148,6 +150,13 @@ export function App() {
           runDriveMaintenance("backup", session.provider_token ?? ""),
       }}
       workflows={{ run: workflowCommand }}
+      exchangeRates={{ load: loadExchangeRates, refresh: refreshExchangeRates }}
+      localExecutor={createLocalExecutor({
+        accessToken: session.access_token,
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+        publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        bridgeUrl: import.meta.env.VITE_LOCAL_EXECUTOR_URL,
+      })}
       onSignOut={async () => {
         const { error } = await supabase!.auth.signOut();
         if (error) throw error;

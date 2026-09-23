@@ -13,10 +13,12 @@ import m5Migration from "../supabase/migrations/202609210002_ai_summary_search.s
 import m6Migration from "../supabase/migrations/202609210003_attachments_maintenance.sql?raw";
 import workflowMigration from "../supabase/migrations/202609220001_workflow_execution_center.sql?raw";
 import priorityRemindersMigration from "../supabase/migrations/202609220002_priority_reminders.sql?raw";
+import exchangeRateMigration from "../supabase/migrations/202609230001_exchange_rates.sql?raw";
 import type { SummaryOperations, SummaryState } from "../src/summary";
 import type { SearchField, SearchResult } from "../src/search";
 import type { AttachmentOperations, AttachmentState } from "../src/attachments";
 import type { WorkflowState } from "../src/workflow";
+import type { ExchangeRateState } from "../src/exchangeRates";
 import "../src/style.css";
 const db = new PGlite("idb://workflow-browser-tests-v2");
 await db.waitReady;
@@ -66,7 +68,12 @@ if (!hasWorkflow.rows[0].exists) await db.exec(workflowMigration);
 const hasPriorityReminders = await db.query<{ exists: boolean }>(
   "select to_regprocedure('public.create_priority_due_reminders(uuid,timestamptz)') is not null as exists",
 );
-if (!hasPriorityReminders.rows[0].exists) await db.exec(priorityRemindersMigration);
+if (!hasPriorityReminders.rows[0].exists)
+  await db.exec(priorityRemindersMigration);
+const hasRates = await db.query<{ exists: boolean }>(
+  "select exists(select 1 from pg_tables where schemaname='public' and tablename='exchange_rates')",
+);
+if (!hasRates.rows[0].exists) await db.exec(exchangeRateMigration);
 const execute: Execute = async (action, payload = {}) => {
   if (new URLSearchParams(location.search).get("fail") === action)
     throw new Error("測試用連線中斷");
@@ -229,7 +236,9 @@ const workflowRun = async (
   payload: Record<string, unknown> = {},
 ) => {
   const state = await db.transaction(async (tx) => {
-    await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [user]);
+    await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+      user,
+    ]);
     await tx.exec("set local role authenticated");
     const result = await tx.query<{ result: WorkflowState }>(
       "select workflow_command($1,$2::jsonb) as result",
@@ -239,6 +248,64 @@ const workflowRun = async (
   });
   await db.syncToFs();
   return state;
+};
+const rateNow = new Date().toISOString();
+const fixtureRates: ExchangeRateState = {
+  rates: [
+    {
+      currency: "USD",
+      spot_buy: 31.6,
+      spot_sell: 31.7,
+      cash_buy: 31.35,
+      cash_sell: 31.9,
+      quoted_at: rateNow,
+      fetched_at: rateNow,
+      source_url: "https://www.esunbank.com/",
+    },
+    {
+      currency: "CNY",
+      spot_buy: 4.7,
+      spot_sell: 4.75,
+      cash_buy: 4.65,
+      cash_sell: 4.81,
+      quoted_at: rateNow,
+      fetched_at: rateNow,
+      source_url: "https://www.esunbank.com/",
+    },
+    {
+      currency: "JPY",
+      spot_buy: 0.199,
+      spot_sell: 0.203,
+      cash_buy: 0.198,
+      cash_sell: 0.205,
+      quoted_at: rateNow,
+      fetched_at: rateNow,
+      source_url: "https://www.esunbank.com/",
+    },
+    {
+      currency: "EUR",
+      spot_buy: 37.1,
+      spot_sell: 37.5,
+      cash_buy: 36.7,
+      cash_sell: 37.9,
+      quoted_at: rateNow,
+      fetched_at: rateNow,
+      source_url: "https://www.esunbank.com/",
+    },
+    {
+      currency: "AUD",
+      spot_buy: 20.8,
+      spot_sell: 21.2,
+      cash_buy: 20.3,
+      cash_sell: 21.7,
+      quoted_at: rateNow,
+      fetched_at: rateNow,
+      source_url: "https://www.esunbank.com/",
+    },
+  ],
+  last_attempt_at: rateNow,
+  last_success_at: rateNow,
+  last_error: "",
 };
 createRoot(document.getElementById("root")!).render(
   <Board
@@ -304,5 +371,10 @@ createRoot(document.getElementById("root")!).render(
     search={{ search }}
     attachments={attachments}
     workflows={{ run: workflowRun }}
+    exchangeRates={{
+      load: async () => fixtureRates,
+      refresh: async () => fixtureRates,
+    }}
+    localExecutor={{ execute: () => workflowRun("load") }}
   />,
 );

@@ -107,3 +107,17 @@ Workflow Node 可關聯：
 移往 Google Drive。
 
 禁止無限制把 stdout / verbose log 灌入 Supabase。
+
+## 9. 本機 Executor bridge
+
+- 只監聽 `127.0.0.1`，不公開對外網路。
+- 使用已登入的 Codex CLI 與既有訂閱額度，不使用 OpenAI API key。
+- 使用瀏覽器短效 Supabase access token 回寫該使用者自己的 Run，不使用 service role key。
+- Repository root 由本機設定固定，不接受網頁傳入任意路徑。
+- 只有 Verification 有明確通過證據時才能完成 Run；必要人工操作寫入 Human Gate。
+
+## 10. 玉山外幣匯率
+
+- Edge Function 只讀取指定的玉山銀行官方頁面。
+- Supabase 保存 USD、CNY、JPY、EUR、AUD 最後成功的即期與現金買入／賣出報價。
+- 失敗只更新錯誤狀態，不清除最後成功資料，也不影響其他工作台模組。

@@ -214,6 +214,7 @@ export const emptyPreferences: TodayPreferences = {
     "ai_execution",
     "notifications",
     "holidays",
+    "exchange_rates",
   ],
   hidden_modules: [],
   updated_at: "",

@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   priorityLabels,
   type CalendarDay,
+  type GoogleCalendarEvent,
   type Notification,
   type Snapshot,
   type Task,
@@ -10,6 +11,11 @@ import type { CalendarOperations } from "./Board";
 import { AIChat, type AITaskDraft } from "./AIChat";
 import { ExecutionSummary } from "./ExecutionCenter";
 import type { WorkflowState } from "./workflow";
+import {
+  emptyExchangeRateState,
+  ExchangeRates,
+  type ExchangeRateOperations,
+} from "./exchangeRates";
 
 type Run = (
   action: string,
@@ -31,8 +37,75 @@ const modules: Array<{ id: ModuleId; label: string }> = [
   { id: "ai_execution", label: "AI 執行狀態" },
   { id: "notifications", label: "通知" },
   { id: "holidays", label: "假日提醒" },
+  { id: "exchange_rates", label: "玉山外幣匯率" },
 ];
 const priorityRank = { Urgent: 0, High: 1, Regular: 2 } as const;
+
+function LayoutModuleRow({
+  id,
+  label,
+  hidden,
+  busy,
+  first,
+  last,
+  move,
+  toggle,
+  start,
+  drop,
+}: {
+  id: ModuleId;
+  label: string;
+  hidden: boolean;
+  busy: boolean;
+  first: boolean;
+  last: boolean;
+  move: (offset: -1 | 1) => void;
+  toggle: () => void;
+  start: () => void;
+  drop: () => void;
+}) {
+  const dragId = `today-module:${id}`;
+  return (
+    <div
+      className="layout-module-row"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        drop();
+      }}
+    >
+      <button
+        className="layout-grip"
+        aria-label={`拖曳模組 ${label}`}
+        disabled={busy}
+        draggable={!busy}
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", dragId);
+          start();
+        }}
+      >
+        ⠿
+      </button>
+      <strong>{label}</strong>
+      <button
+        aria-label={`上移模組 ${label}`}
+        disabled={busy || first}
+        onClick={() => move(-1)}
+      >
+        ↑
+      </button>
+      <button
+        aria-label={`下移模組 ${label}`}
+        disabled={busy || last}
+        onClick={() => move(1)}
+      >
+        ↓
+      </button>
+      <button onClick={toggle}>{hidden ? "顯示" : "隱藏"}</button>
+    </div>
+  );
+}
 
 function dateKey(date: Date) {
   const year = date.getFullYear();
@@ -174,11 +247,13 @@ export function CalendarAgenda({
   data,
   tasks,
   openTask,
+  createCalendarRun,
 }: {
   dates: Date[];
   data: Snapshot;
   tasks: Task[];
   openTask: (id: string) => void;
+  createCalendarRun?: (event: GoogleCalendarEvent) => Promise<boolean>;
 }) {
   return (
     <div className="calendar-agenda">
@@ -239,18 +314,30 @@ export function CalendarAgenda({
                       <button onClick={() => openTask(entry.task.id)}>
                         <span>Task</span> {entry.title}
                       </button>
-                    ) : entry.event.html_link ? (
-                      <a
-                        href={entry.event.html_link}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <span>Calendar</span> {entry.title}
-                      </a>
                     ) : (
-                      <p>
-                        <span>Calendar</span> {entry.title}
-                      </p>
+                      <div className="calendar-event-actions">
+                        {entry.event.html_link ? (
+                          <a
+                            href={entry.event.html_link}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <span>Calendar</span> {entry.title}
+                          </a>
+                        ) : (
+                          <p>
+                            <span>Calendar</span> {entry.title}
+                          </p>
+                        )}
+                        {createCalendarRun && (
+                          <button
+                            type="button"
+                            onClick={() => void createCalendarRun(entry.event)}
+                          >
+                            建立 Run
+                          </button>
+                        )}
+                      </div>
                     )}
                   </li>
                 ))}
@@ -276,6 +363,8 @@ export function Today({
   workflowState,
   openRun,
   aiTaskDisabled,
+  createCalendarRun,
+  exchangeRates,
 }: {
   data: Snapshot;
   busy: boolean;
@@ -287,9 +376,34 @@ export function Today({
   workflowState: WorkflowState;
   openRun: (id: string) => void;
   aiTaskDisabled: boolean;
+  createCalendarRun: (event: GoogleCalendarEvent) => Promise<boolean>;
+  exchangeRates?: ExchangeRateOperations;
 }) {
   const [editingLayout, setEditingLayout] = useState(false);
   const [editingCalendars, setEditingCalendars] = useState(false);
+  const [rateState, setRateState] = useState(emptyExchangeRateState);
+  const [rateBusy, setRateBusy] = useState(false);
+  const [draggingModule, setDraggingModule] = useState<ModuleId | null>(null);
+  useEffect(() => {
+    if (!exchangeRates) return;
+    let cancelled = false;
+    exchangeRates
+      .load()
+      .then((next) => {
+        if (!cancelled) setRateState(next);
+      })
+      .catch((reason) => {
+        if (!cancelled)
+          setRateState((current) => ({
+            ...current,
+            last_error:
+              reason instanceof Error ? reason.message : String(reason),
+          }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [exchangeRates]);
   const now = new Date();
   const today = dateKey(now);
   const incomplete = data.tasks.filter((task) => {
@@ -335,6 +449,16 @@ export function Today({
       module_order: nextOrder,
       hidden_modules: nextHidden,
     });
+  }
+
+  function moveLayout(active: ModuleId, over: ModuleId) {
+    const from = order.indexOf(active);
+    const to = order.indexOf(over);
+    if (from < 0 || to < 0 || from === to) return;
+    const next = [...order];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    void saveLayout(next, hidden);
   }
 
   function renderModule(id: ModuleId) {
@@ -459,6 +583,7 @@ export function Today({
             data={data}
             tasks={incomplete}
             openTask={openTask}
+            createCalendarRun={createCalendarRun}
           />
         </section>
       );
@@ -473,6 +598,28 @@ export function Today({
           compact
           createTask={createAiTask}
           taskCreationDisabled={aiTaskDisabled}
+        />
+      );
+    if (id === "exchange_rates")
+      return (
+        <ExchangeRates
+          state={rateState}
+          busy={rateBusy}
+          refresh={() => {
+            if (!exchangeRates || rateBusy) return;
+            setRateBusy(true);
+            exchangeRates
+              .refresh()
+              .then(setRateState)
+              .catch((reason) =>
+                setRateState((current) => ({
+                  ...current,
+                  last_error:
+                    reason instanceof Error ? reason.message : String(reason),
+                })),
+              )
+              .finally(() => setRateBusy(false));
+          }}
         />
       );
     return (
@@ -519,42 +666,21 @@ export function Today({
       {editingLayout && (
         <section className="layout-editor" aria-label="Today 版面設定">
           <h2>版面模組</h2>
-          {order.map((id, index) => {
-            const module = modules.find((item) => item.id === id)!;
-            const isHidden = hidden.includes(id);
-            return (
-              <div key={id}>
-                <strong>{module.label}</strong>
-                <button
-                  aria-label={`上移模組 ${module.label}`}
-                  disabled={busy || index === 0}
-                  onClick={() => {
-                    const next = [...order];
-                    [next[index - 1], next[index]] = [
-                      next[index],
-                      next[index - 1],
-                    ];
-                    void saveLayout(next, hidden);
-                  }}
-                >
-                  ↑
-                </button>
-                <button
-                  aria-label={`下移模組 ${module.label}`}
-                  disabled={busy || index === order.length - 1}
-                  onClick={() => {
-                    const next = [...order];
-                    [next[index + 1], next[index]] = [
-                      next[index],
-                      next[index + 1],
-                    ];
-                    void saveLayout(next, hidden);
-                  }}
-                >
-                  ↓
-                </button>
-                <button
-                  onClick={() =>
+          <div>
+            {order.map((id, index) => {
+              const module = modules.find((item) => item.id === id)!;
+              const isHidden = hidden.includes(id);
+              return (
+                <LayoutModuleRow
+                  key={id}
+                  id={id}
+                  label={module.label}
+                  hidden={isHidden}
+                  busy={busy}
+                  first={index === 0}
+                  last={index === order.length - 1}
+                  move={(offset) => moveLayout(id, order[index + offset])}
+                  toggle={() =>
                     void saveLayout(
                       order,
                       isHidden
@@ -562,12 +688,15 @@ export function Today({
                         : [...hidden, id],
                     )
                   }
-                >
-                  {isHidden ? "顯示" : "隱藏"}
-                </button>
-              </div>
-            );
-          })}
+                  start={() => setDraggingModule(id)}
+                  drop={() => {
+                    if (draggingModule) moveLayout(draggingModule, id);
+                    setDraggingModule(null);
+                  }}
+                />
+              );
+            })}
+          </div>
         </section>
       )}
       <div className="today-modules">

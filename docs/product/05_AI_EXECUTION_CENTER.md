@@ -12,6 +12,8 @@ AI Execution Center 是 AI 個人工作台的核心模組，不是獨立工具�
 
 V1 採 **Read-only Observable Workflow**。
 
+V1 Executor bridge 使用本機 Codex CLI 與使用者目前的 Codex 訂閱登入，不使用 OpenAI API key。bridge 只監聽 loopback，必須將執行結果、驗證、Artifact 或 Human Gate 回寫原 Run。
+
 不做自由拖拉編排。
 
 ---

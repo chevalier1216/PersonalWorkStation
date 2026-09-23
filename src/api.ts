@@ -31,6 +31,7 @@ export function normalizeSnapshot(snapshot: Partial<Snapshot>): Snapshot {
         "ai_execution",
         "notifications",
         "holidays",
+        "exchange_rates",
       ],
       hidden_modules: [],
       updated_at: "",
@@ -75,7 +76,10 @@ async function googleJson<T>(
   });
   if (!response.ok) {
     const body = await response.text();
-    const hint = response.status === 401 ? "Google 授權已過期，請重新連結。" : body.slice(0, 500);
+    const hint =
+      response.status === 401
+        ? "Google 授權已過期，請重新連結。"
+        : body.slice(0, 500);
     throw new Error(`Google Calendar API ${response.status}：${hint}`);
   }
   return (await response.json()) as T;
@@ -104,7 +108,9 @@ export function taskEventBody(task: Task) {
   const privateProperties = { personalWorkStationTaskId: task.id };
   if (task.due_at) {
     const start = new Date(task.due_at);
-    const end = new Date(start.getTime() + (task.estimated_minutes ?? 30) * 60000);
+    const end = new Date(
+      start.getTime() + (task.estimated_minutes ?? 30) * 60000,
+    );
     return {
       summary: task.title,
       description: task.description,
@@ -136,7 +142,9 @@ export async function syncGoogleCalendar(
       token,
       "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250",
     );
-    const prior = new Map(current.google_calendars.map((item) => [item.calendar_id, item.selected]));
+    const prior = new Map(
+      current.google_calendars.map((item) => [item.calendar_id, item.selected]),
+    );
     const hasPrior = current.google_calendars.length > 0;
     const calendars = (list.items ?? []).map((item) => ({
       id: item.id,
@@ -169,7 +177,10 @@ export async function syncGoogleCalendar(
           .map((event) => normalizeGoogleEvent(calendar.id, event));
       }),
     );
-    return command("calendar_sync_success", { calendars, events: eventGroups.flat() });
+    return command("calendar_sync_success", {
+      calendars,
+      events: eventGroups.flat(),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return command("calendar_sync_failure", { message });
@@ -191,11 +202,13 @@ export async function createTaskCalendarEvent(
       token,
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${query}`,
     );
-    const event = existing.items?.[0] ?? (await googleJson<GoogleEvent>(
-      token,
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-      { method: "POST", body: JSON.stringify(taskEventBody(task)) },
-    ));
+    const event =
+      existing.items?.[0] ??
+      (await googleJson<GoogleEvent>(
+        token,
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+        { method: "POST", body: JSON.stringify(taskEventBody(task)) },
+      ));
     return command("calendar_link_success", {
       task_id: task.id,
       calendar_id: calendarId,

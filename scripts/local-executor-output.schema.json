@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "verification", "artifacts", "human_gate"],
+  "properties": {
+    "summary": { "type": "string" },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "checks"],
+      "properties": {
+        "passed": { "type": "boolean" },
+        "checks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "label", "url"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "repository",
+              "issue",
+              "branch",
+              "commit",
+              "pull_request",
+              "test_result",
+              "document",
+              "file",
+              "link"
+            ]
+          },
+          "label": { "type": "string" },
+          "url": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "human_gate": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["reason", "prompt"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": [
+            "product_decision",
+            "oauth",
+            "permission",
+            "destructive",
+            "mutually_exclusive_choice"
+          ]
+        },
+        "prompt": { "type": "string" }
+      }
+    }
+  }
+}

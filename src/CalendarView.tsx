@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Snapshot } from "./domain";
+import type { GoogleCalendarEvent, Snapshot } from "./domain";
 import type { CalendarOperations } from "./Board";
 import { CalendarAgenda } from "./Today";
 
@@ -15,6 +15,7 @@ export function CalendarView({
   run,
   syncCalendar,
   openTask,
+  createCalendarRun,
 }: {
   data: Snapshot;
   busy: boolean;
@@ -22,6 +23,7 @@ export function CalendarView({
   run: Run;
   syncCalendar: () => Promise<boolean>;
   openTask: (id: string) => void;
+  createCalendarRun: (event: GoogleCalendarEvent) => Promise<boolean>;
 }) {
   const [editingCalendars, setEditingCalendars] = useState(false);
   const dates = useMemo(() => {
@@ -122,6 +124,7 @@ export function CalendarView({
         data={data}
         tasks={incomplete}
         openTask={openTask}
+        createCalendarRun={createCalendarRun}
       />
     </section>
   );

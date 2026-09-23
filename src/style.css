@@ -461,13 +461,21 @@ h1 {
 .layout-editor {
   margin-bottom: 18px;
 }
-.layout-editor > div {
+.layout-module-row {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: auto 1fr auto auto auto;
   gap: 8px;
   align-items: center;
   padding: 8px 0;
   border-top: 1px solid #a6b5cd20;
+}
+.layout-module-row.over {
+  border-color: #a9c9f088;
+  background: #7e9fc620;
+}
+.layout-grip {
+  cursor: grab;
+  touch-action: none;
 }
 .quick-add {
   margin: 12px 0 30px;
@@ -1076,10 +1084,32 @@ dialog::backdrop {
 }
 .card-run {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   width: 100%;
   padding: 6px 9px;
   font-size: 0.72rem;
+}
+.card-run small {
+  flex-basis: 100%;
+  margin-top: 4px;
+  color: #aab8ca;
+  text-align: left;
+}
+.calendar-event-actions {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.calendar-event-actions > a,
+.calendar-event-actions > p {
+  flex: 1;
+  min-width: 0;
+}
+.calendar-event-actions > button {
+  white-space: nowrap;
 }
 .card-run.waiting_human,
 .workflow-status.waiting_human {
@@ -1355,3 +1385,8 @@ dialog::backdrop {
     grid-template-columns: 1fr;
   }
 }
+.rate-table-wrap { overflow-x: auto; }
+.exchange-rates table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.exchange-rates th, .exchange-rates td { padding: .65rem; border-bottom: 1px solid var(--line); text-align: right; }
+.exchange-rates th:first-child { text-align: left; }
+.local-executor-action { margin-top: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: .75rem; }

@@ -27,6 +27,8 @@ V1 必須實際證明：
 - GitHub 任務可關聯 Commit / PR / Issue
 - 外部服務失敗不會讓整個工作台不可使用
 - 使用者不需要在 Chat / Work / Codex 間人工搬運固定 Prompt
+- 本機 bridge 可將 Waiting External Run 交付既有 Codex CLI，並回寫 Node、Log、Verification、Artifact 或 Human Gate
+- Today 可顯示玉山官方 USD、RMB/CNY、JPY、EUR、AUD 的即期與現金買入／賣出，失敗時保留最後成功資料
 
 ## 2. V1 不做
 

@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-test("AI Chat creates a persisted Task and observable Run", async ({ page }) => {
+test("AI Chat creates a persisted Task and observable Run", async ({
+  page,
+}) => {
   await page.goto("/PersonalWorkStation/tests/fixture.html");
   await page.getByRole("button", { name: "AI 對話", exact: true }).click();
   const chat = page.getByRole("region", { name: "AI 對話" });
@@ -14,12 +16,37 @@ test("AI Chat creates a persisted Task and observable Run", async ({ page }) => 
   const center = page.getByRole("region", { name: "AI 執行中心" });
   const run = center.getByRole("button", { name: new RegExp(title) });
   await expect(run).toContainText("Waiting External");
-  await run.click();
-  await expect(center.getByRole("button", { name: /Trigger Success/ })).toBeVisible();
-  await expect(center.getByRole("button", { name: /Context Queued/ })).toBeVisible();
-  await expect(center.getByRole("button", { name: /Execution Queued/ })).toBeVisible();
-  await expect(center.getByRole("button", { name: /Verification Queued/ })).toBeVisible();
-  await expect(center.getByRole("button", { name: /Output Queued/ })).toBeVisible();
+  const runCode = await run.locator("code").innerText();
+  expect(runCode).toMatch(/^RUN-\d{8}-\d{4}$/);
+
+  await page.getByRole("button", { name: "任務看板", exact: true }).click();
+  const cardRun = page.locator(".card-run").filter({ hasText: runCode });
+  await expect(cardRun).toContainText("Context");
+  await expect(cardRun).toContainText(/\d+ 秒/);
+  await cardRun.click();
+  await expect(page.getByRole("region", { name: "AI 執行中心" })).toBeVisible();
+
+  const reopened = center.getByRole("button", { name: new RegExp(title) });
+  await reopened.click();
+  await expect(
+    center.getByRole("button", { name: /Trigger Success/ }),
+  ).toBeVisible();
+  await expect(
+    center.getByRole("button", { name: /Context Queued/ }),
+  ).toBeVisible();
+  await expect(
+    center.getByRole("button", { name: /Execution Queued/ }),
+  ).toBeVisible();
+  await expect(
+    center.getByRole("button", { name: /Verification Queued/ }),
+  ).toBeVisible();
+  await expect(
+    center.getByRole("button", { name: /Output Queued/ }),
+  ).toBeVisible();
+  await center.getByRole("button", { name: /Trigger Success/ }).click();
+  await expect(
+    center.getByRole("button", { name: "交給本機 Codex" }),
+  ).toBeVisible();
 
   await page.reload();
   await page.getByRole("button", { name: "AI 執行中心", exact: true }).click();

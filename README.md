@@ -6,8 +6,8 @@
 
 - M1 Task / Board / Persistence 與 M2 Today / Notification / Recurring 已完成 production 驗證。
 - M3 Google Calendar 已完成 production migration、指定帳號 OAuth 與實際 event smoke test。
-- 舊版 M4–M7 已完成的 browser handoff、Summary、搜尋、附件、封存、responsive 與 Pages workflow 保留為既有成果。新版 AI Execution Center 的本機 Run／Node／Graph／Timeline／Human Gate 實作已完成；真實 executor bridge 與 production migration／smoke 尚未完成。
-- 正式站必須在新版 Run／Node／Graph／Timeline／Human Gate、提醒、匯率、production 設定、部署與 smoke test 全部通過後才算 V1 完成。
+- 舊版 M4–M7 已完成的 browser handoff、Summary、搜尋、附件、封存、responsive 與 Pages workflow 保留為既有成果。新版 AI Execution Center 的 Run／Node／Graph／Timeline／Human Gate 與本機 executor bridge 已實作；匯率 production migration、Edge Function 部署與五幣別 smoke 已完成。
+- 正式站仍需取得本次 commit、完成 Pages 發布，並執行新版前端與本機 executor 的 production smoke，才算 V1 完成。
 
 舊版完成證據仍見 `docs/M2-PRODUCTION-STATUS.md` 至 `docs/M7-STATUS.md`；這些是歷史實作紀錄，不覆寫新版 authoritative PRD。
 
@@ -58,3 +58,16 @@ npm run build
 - `SUPABASE_PUBLISHABLE_KEY`
 
 兩者會打包至瀏覽器，僅能使用 publishable key；不得設定 service role 或資料庫密碼。正式發布還需將 Pages URL 加入 Supabase Auth redirect allowlist。
+## 本機 Executor bridge
+
+AI 執行中心以本機 Codex CLI 執行 Run，不使用 OpenAI API key。先確認已在本機登入 Codex，於 repository root 執行：
+
+```powershell
+npm run executor:local
+```
+
+bridge 僅監聽 `127.0.0.1:4317`，預設接受本機開發頁與 `https://chevalier1216.github.io`。若正式站改用其他 origin，啟動前以 `PWS_ALLOWED_ORIGINS` 明確加入。執行會使用目前 Codex 訂閱額度；接近用量上限時應暫停 Run。
+
+## 玉山外幣匯率
+
+Today 的匯率模組由 `refresh-exchange-rates` Edge Function 讀取玉山銀行官方頁面，顯示 USD、RMB/CNY、JPY、EUR、AUD 的即期與現金買入／賣出。同步失敗會保留最後成功快取。Production 已套用 `202609230001_exchange_rates.sql` 並部署該 Edge Function；不需要新增付費服務。

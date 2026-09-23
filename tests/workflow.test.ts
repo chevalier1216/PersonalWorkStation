@@ -37,16 +37,16 @@ describe("AI Execution Center persistence and verification", () => {
       status: "waiting_external",
       project: "Mahjong",
     });
-    expect(state.nodes.filter((node) => node.run_id === run.id).map((node) => node.node_key)).toEqual([
-      "trigger",
-      "context",
-      "execution",
-      "verification",
-      "output",
-    ]);
+    expect(
+      state.nodes
+        .filter((node) => node.run_id === run.id)
+        .map((node) => node.node_key),
+    ).toEqual(["trigger", "context", "execution", "verification", "output"]);
     const ordered = state.nodes.filter((node) => node.run_id === run.id);
     expect(ordered.slice(1).every((node) => node.parent_node_id)).toBe(true);
-    expect(state.events.some((event) => event.event_type === "run_created")).toBe(true);
+    expect(
+      state.events.some((event) => event.event_type === "run_created"),
+    ).toBe(true);
   });
 
   it("preserves retry history and only allows Success after verification", async () => {
@@ -78,8 +78,7 @@ describe("AI Execution Center persistence and verification", () => {
       await ctx.runWorkflow("update_node", {
         node_id: node.id,
         status: "success",
-        verification:
-          node.node_key === "verification" ? { passed: true } : {},
+        verification: node.node_key === "verification" ? { passed: true } : {},
       });
     }
     state = await ctx.runWorkflow("complete_run", {
@@ -123,7 +122,29 @@ describe("AI Execution Center persistence and verification", () => {
       url: "https://github.com/example/repo/commit/8177fd7",
       metadata: { repository: "example/repo" },
     });
-    expect(state.artifacts[0]).toMatchObject({ kind: "commit", label: "8177fd7" });
+    expect(state.artifacts[0]).toMatchObject({
+      kind: "commit",
+      label: "8177fd7",
+    });
+    state = await ctx.runWorkflow("record_artifact", {
+      run_id: run.id,
+      node_id: node.id,
+      kind: "issue",
+      label: "Issue #5",
+      url: "https://github.com/example/repo/issues/5",
+      metadata: { repository: "example/repo", number: 5 },
+    });
+    state = await ctx.runWorkflow("record_artifact", {
+      run_id: run.id,
+      node_id: node.id,
+      kind: "pull_request",
+      label: "PR #6",
+      url: "https://github.com/example/repo/pull/6",
+      metadata: { repository: "example/repo", number: 6 },
+    });
+    expect(state.artifacts.map((item) => item.kind)).toEqual(
+      expect.arrayContaining(["commit", "issue", "pull_request"]),
+    );
     state = await ctx.runWorkflow("record_log", {
       run_id: run.id,
       node_id: node.id,
