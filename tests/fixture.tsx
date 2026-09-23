@@ -14,6 +14,7 @@ import m6Migration from "../supabase/migrations/202609210003_attachments_mainten
 import workflowMigration from "../supabase/migrations/202609220001_workflow_execution_center.sql?raw";
 import priorityRemindersMigration from "../supabase/migrations/202609220002_priority_reminders.sql?raw";
 import exchangeRateMigration from "../supabase/migrations/202609230001_exchange_rates.sql?raw";
+import todayPreferencesGuardMigration from "../supabase/migrations/202609230002_today_preferences_module_guard.sql?raw";
 import type { SummaryOperations, SummaryState } from "../src/summary";
 import type { SearchField, SearchResult } from "../src/search";
 import type { AttachmentOperations, AttachmentState } from "../src/attachments";
@@ -74,6 +75,7 @@ const hasRates = await db.query<{ exists: boolean }>(
   "select exists(select 1 from pg_tables where schemaname='public' and tablename='exchange_rates')",
 );
 if (!hasRates.rows[0].exists) await db.exec(exchangeRateMigration);
+await db.exec(todayPreferencesGuardMigration);
 const execute: Execute = async (action, payload = {}) => {
   if (new URLSearchParams(location.search).get("fail") === action)
     throw new Error("測試用連線中斷");

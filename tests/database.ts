@@ -109,6 +109,15 @@ export async function database() {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      new URL(
+        "../supabase/migrations/202609230002_today_preferences_module_guard.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await db.query("insert into public.allowed_users values($1)", [alice]);
   async function run(
     action: string,

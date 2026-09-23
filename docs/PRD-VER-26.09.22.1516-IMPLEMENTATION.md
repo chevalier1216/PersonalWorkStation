@@ -16,10 +16,10 @@
 - AI Summary 改為建立新的 Task 卡；原 Task 第一行記錄新卡位置，新卡頂部保留差異決策與已完成事項。
 - High／Urgent 提醒新增提前 5 個工作日、3 日、1 日階段。
 
-目前有兩項阻擋性規格缺口：
+原有兩項阻擋性規格缺口已由產品決策解除：
 
-1. **Executor bridge 未定義**：PRD 要求工作台內 AI Chat 能建立並實際執行 Run，但尚未指定以哪個既有訂閱／本機程序／runner 連接 ChatGPT 或 Codex。Web 前端不能在沒有 bridge contract 的情況下自行驅動使用者訂閱帳號。現況會建立真實 Run，狀態停在 `waiting_external`，不會偽報成功。
-2. **匯率來源未定義**：PRD 未指定銀行、現金／即期牌告類型與幣別清單。不同來源結果不同，因此不能自行選定產品資料源。
+1. **Executor bridge**：固定使用本機 Codex CLI 與現有訂閱，不使用 OpenAI API key；bridge 僅監聽 `127.0.0.1:4317`，並以短效 Supabase access token 回寫原 Run。
+2. **匯率來源**：固定使用玉山銀行官方牌告，分列現金／即期買賣價，幣別為 USD、RMB/CNY、JPY、EUR、AUD。
 
 ## 本批保留並延伸的實作
 
@@ -32,12 +32,12 @@
 - High／Urgent 任務產生 5 個中國工作日、3 日、1 日提醒，並以 dedupe key 防止重複通知。
 - AI Summary 建立獨立 Task、雙向 relation，原 Task 第一行記錄摘要卡位置；既有不可變 Summary version index 繼續保留，供歷史搜尋使用。
 
-## 尚未完成與發布邊界
+## 發布與驗證邊界
 
-- `202609220001_workflow_execution_center.sql` 與 `202609220002_priority_reminders.sql` 尚未套用 production。
-- Executor bridge 與匯率來源待產品決策後才能完成對應 end-to-end flow。
-- 新版 migration、正式站部署與 production smoke 尚未執行；本機與 CI 驗證不能替代 production 證據。
-- GitHub push 仍受既有 authentication／permission failure 阻擋。依 Authentication Guardrail，不重複啟動 browser login、`gh auth login` 或 device verification；認證環境確認恢復後再推送目前 branch。
+- 新版 workflow、priority reminder、exchange rate 與 Today module guard migrations 已套用 production。
+- 正式 Pages 已部署；Google 登入、Today、Calendar、匯率與 module order persistence 已取得 production 證據。
+- 本機 executor 的 health、輸入驗證、UI、workflow 與 verification gate 已自動測試；真實 Codex Run 仍需使用者願意消耗訂閱額度後再執行。
+- GitHub CLI issue API 目前回傳 authentication failure。依 Authentication Guardrail，不重複啟動 browser login、`gh auth login` 或 device verification；不阻塞本機修正、驗證與既有 Git push 路徑。
 
 ## 本機驗證
 

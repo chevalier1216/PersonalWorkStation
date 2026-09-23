@@ -541,6 +541,39 @@ describe("PostgreSQL board boundaries", () => {
 });
 
 describe("snapshot compatibility", () => {
+  it("accepts every V1 Today module and rejects unknown module keys", async () => {
+    const ctx = await database();
+    try {
+      const moduleOrder = [
+        "exchange_rates",
+        "ai_execution",
+        "tasks",
+        "calendar",
+        "ai_chat",
+        "notifications",
+        "holidays",
+      ];
+      const snapshot = await ctx.run("save_today_preferences", {
+        module_order: moduleOrder,
+        hidden_modules: ["ai_chat", "exchange_rates"],
+      });
+      expect(snapshot.preferences.module_order).toEqual(moduleOrder);
+      expect(snapshot.preferences.hidden_modules).toEqual([
+        "ai_chat",
+        "exchange_rates",
+      ]);
+
+      await expect(
+        ctx.run("save_today_preferences", {
+          module_order: ["tasks", "unknown_module"],
+          hidden_modules: [],
+        }),
+      ).rejects.toThrow(/today_preferences_module_order_check/);
+    } finally {
+      await ctx.db.close();
+    }
+  }, 30000);
+
   it("keeps the v1 hosted snapshot usable before the additive migration", () => {
     expect(normalizeSnapshot({ columns: [], tasks: [] })).toEqual({
       columns: [],
