@@ -11,7 +11,7 @@
 - Supabase production 已部署 `refresh-exchange-rates`。
 - Dashboard production smoke 回傳 HTTP 200：`{"ok":true,"count":5}`。
 - GitHub repository variables `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY` 已設定於 repository scope；未使用 `service_role`。
-- GitHub Pages 已由 workflow run `35826502465` 成功建置與部署 commit `995e5c7`：<https://chevalier1216.github.io/PersonalWorkStation/>。
+- GitHub Pages 已由 workflow run `35855651455` 成功建置與部署 commit `7543ecd`：<https://chevalier1216.github.io/PersonalWorkStation/>。
 - Supabase Auth Site URL 與 redirect allowlist 已設定為正式 Pages URL。
 - 正式站已完成 Google 登入，Today、既有 Task、Calendar、通知與 AI Execution 模組均可載入。
 - 正式站匯率模組顯示玉山官方 USD、RMB/CNY、JPY、EUR、AUD 的即期與現金買入／賣出及更新時間。
