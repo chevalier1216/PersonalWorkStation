@@ -109,7 +109,7 @@ export function AIChat({
               try {
                 const saved = await createTask({
                   title: draftTitle.trim(),
-                  description: draftDescription.trim(),
+                  description: draftDescription.trim() || message.trim(),
                   priority: draftPriority,
                 });
                 if (saved) {
@@ -150,6 +150,9 @@ export function AIChat({
                 onChange={(event) => setDraftDescription(event.target.value)}
               />
             </label>
+            <p className="subtle">
+              留空時會自動帶入上方的需求或問題；在此填寫則以此內容為準。
+            </p>
             <label>
               優先程度
               <select
