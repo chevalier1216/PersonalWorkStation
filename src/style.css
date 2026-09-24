@@ -1249,6 +1249,12 @@ dialog::backdrop {
 .workflow-detail dd {
   margin: 0;
 }
+.github-artifact-form {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #ffffff20;
+}
 .execution-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

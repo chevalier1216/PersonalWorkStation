@@ -59,6 +59,12 @@ export function ExecutionCenter({
   const [gateResponse, setGateResponse] = useState("");
   const [localBusy, setLocalBusy] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [artifactKind, setArtifactKind] = useState<
+    "repository" | "issue" | "branch" | "commit" | "pull_request" | "test_result"
+  >("issue");
+  const [artifactLabel, setArtifactLabel] = useState("");
+  const [artifactUrl, setArtifactUrl] = useState("");
+  const [artifactError, setArtifactError] = useState("");
 
   const selectedRun =
     state.runs.find((item) => item.id === selectedRunId) ??
@@ -131,7 +137,7 @@ export function ExecutionCenter({
         <div>
           <p className="eyebrow">AI EXECUTION CENTER</p>
           <h1>AI 執行中心</h1>
-          <p className="muted">唯讀觀察 Run、Node、驗證、事件與交付物。</p>
+          <p className="muted">查看 Run、Node、驗證與事件，並關聯交付物。</p>
         </div>
       </div>
 
@@ -462,6 +468,82 @@ export function ExecutionCenter({
             ) : (
               <p className="subtle">尚無 Artifact</p>
             )}
+            <form
+              className="github-artifact-form"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                setArtifactError("");
+                let url: URL;
+                try {
+                  url = new URL(artifactUrl.trim());
+                } catch {
+                  setArtifactError("請填入有效的 GitHub HTTPS 網址");
+                  return;
+                }
+                if (
+                  url.protocol !== "https:" ||
+                  url.hostname !== "github.com" ||
+                  Boolean(url.username || url.password || url.port) ||
+                  url.pathname.split("/").filter(Boolean).length < 2
+                ) {
+                  setArtifactError("請填入有效的 GitHub HTTPS 網址");
+                  return;
+                }
+                if (
+                  await run("record_artifact", {
+                    run_id: selectedRun.id,
+                    kind: artifactKind,
+                    label: artifactLabel.trim(),
+                    url: url.toString(),
+                    metadata: { provider: "github" },
+                  })
+                ) {
+                  setArtifactLabel("");
+                  setArtifactUrl("");
+                }
+              }}
+            >
+              <h4>關聯 GitHub 執行結果</h4>
+              <label>
+                類型
+                <select
+                  value={artifactKind}
+                  onChange={(event) =>
+                    setArtifactKind(event.target.value as typeof artifactKind)
+                  }
+                >
+                  <option value="repository">Repository</option>
+                  <option value="issue">Issue</option>
+                  <option value="branch">Branch</option>
+                  <option value="commit">Commit</option>
+                  <option value="pull_request">PR</option>
+                  <option value="test_result">Test Result</option>
+                </select>
+              </label>
+              <label>
+                名稱
+                <input
+                  value={artifactLabel}
+                  maxLength={300}
+                  onChange={(event) => setArtifactLabel(event.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                GitHub 網址
+                <input
+                  type="url"
+                  value={artifactUrl}
+                  onChange={(event) => setArtifactUrl(event.target.value)}
+                  placeholder="https://github.com/owner/repo/issues/1"
+                  required
+                />
+              </label>
+              {artifactError && <p className="error" role="alert">{artifactError}</p>}
+              <button disabled={busy || !artifactLabel.trim() || !artifactUrl.trim()}>
+                新增 GitHub 關聯
+              </button>
+            </form>
           </section>
           {gates
             .filter((gate) => gate.status === "open")

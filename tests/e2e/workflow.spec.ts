@@ -55,6 +55,26 @@ test("AI Chat creates a persisted Task and observable Run", async ({
     center.getByRole("button", { name: "交給本機 Codex" }),
   ).toBeVisible();
 
+  await center.getByRole("textbox", { name: "名稱" }).fill("錯誤網域");
+  await center.getByRole("textbox", { name: "GitHub 網址" }).fill("https://github.com.invalid/owner/repo/issues/1");
+  await center.getByRole("button", { name: "新增 GitHub 關聯" }).click();
+  await expect(
+    center.getByRole("alert").filter({ hasText: "有效的 GitHub HTTPS 網址" }),
+  ).toBeVisible();
+
+  const githubLinks = [
+    { kind: "issue", label: "Issue #1", url: "https://github.com/chevalier1216/PersonalWorkStation/issues/1" },
+    { kind: "commit", label: "Commit e382c05", url: "https://github.com/chevalier1216/PersonalWorkStation/commit/e382c05" },
+    { kind: "pull_request", label: "PR #1", url: "https://github.com/chevalier1216/PersonalWorkStation/pull/1" },
+  ];
+  for (const item of githubLinks) {
+    await center.getByRole("combobox", { name: "類型" }).selectOption(item.kind);
+    await center.getByRole("textbox", { name: "名稱" }).fill(item.label);
+    await center.getByRole("textbox", { name: "GitHub 網址" }).fill(item.url);
+    await center.getByRole("button", { name: "新增 GitHub 關聯" }).click();
+    await expect(center.getByRole("link", { name: item.label })).toHaveAttribute("href", item.url);
+  }
+
   await page.reload();
   await page.getByRole("button", { name: "AI 執行中心", exact: true }).click();
   await expect(
@@ -62,4 +82,9 @@ test("AI Chat creates a persisted Task and observable Run", async ({
       .getByRole("region", { name: "AI 執行中心" })
       .getByRole("button", { name: new RegExp(title) }),
   ).toBeVisible({ timeout: 30000 });
+  await center.getByRole("button", { name: new RegExp(title) }).click();
+  await center.getByRole("button", { name: "Detail" }).click();
+  for (const item of githubLinks) {
+    await expect(center.getByRole("link", { name: item.label })).toHaveAttribute("href", item.url);
+  }
 });
