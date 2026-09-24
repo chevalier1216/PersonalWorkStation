@@ -29,16 +29,19 @@
 - 本機 Executor 第二次交付已進入 Codex CLI，並將 `--sandbox` 與 `--approve-for-me` 互斥參數錯誤回寫到舊 Run；其後修正與成功路徑見下方新 Run 紀錄。
 - 已推送 `7165fe7` 修正 CLI 互斥參數與唯讀 Run 的提示，`4fd1583` 傳遞本機 `CODEX_HOME`。正式站新建唯讀 `RUN-20260925-0001`，交給本機 Codex CLI 後成功回寫；Graph 的 Trigger、Context、Execution、Verification、Output 全部為 Success，Task 可雙向開啟該 Run。此 Run 未修改檔案或發布。
 - 正式站已為該 Task 建立摘要版本 `v.26.09.25.0050` 與關聯摘要任務卡；摘要原文、來源與版本顯示於 Task 詳細資料。
-- 最近兩次 V1 verification workflow 在 `npm run build` 失敗，原因是 `codexExecArgs` 缺少 `.d.mts` 型別宣告。已補上宣告，本機 production build 通過；待新 commit 的 CI 驗證。
+- 最近兩次 V1 verification workflow 在 `npm run build` 失敗，原因是 `codexExecArgs` 缺少 `.d.mts` 型別宣告。`e382c05` 已補上宣告，遠端 V1 verification run `36030383586` 的 unit、desktop/mobile E2E、build 全部通過。
+- `7515273` 讓 AI Chat 的需求文字在 Task 說明留空時直接寫入 Task 與 Run，保留手動說明覆寫；desktop/mobile focused E2E 2/2、production build、遠端 V1 verification run `36031937135` 全部通過，已推送工作分支。
+- 指定 Google Drive 版本文件已追加本批 Executor、migration、Functions、smoke、CI 與未驗證項目，並讀回核對：<https://docs.google.com/document/d/1xCYBrIw6dH4eF2gJM7nxN4WiaP4bPQp17fOgqFYEALQ/edit>。
 
 ## 尚未驗證／人工 blocker
 
 - 舊 `RUN-20260923-0001` 因三次失敗已 Paused，保留完整錯誤歷史；成功路徑由新 Run 驗證。
 - 歷史 Search 查詢、Drive 附件封存／維護的 production 寫入路徑尚未完成 smoke；Google Drive OAuth 權限是否仍有效也待實測。開啟正式站歷史紀錄時，瀏覽器自動審查拒絕額外網域存取；未改用其他瀏覽器途徑繞過。
-- Google Drive 的既有版本文件可在指定「版本紀錄」子資料夾看到，但 Drive 畫面回報離線，無法開啟文件寫入本批交付紀錄；未將未完成同步描述為已完成。
+- AI Chat 目前仍以新瀏覽器分頁開啟 ChatGPT；使用者要求的「工作台內瀏覽器對話」尚未完成，不以既有連結或固定 Prompt 視為完成。
+- 嘗試發布 `7515273` 至 GitHub Pages 時，既有 `gh workflow run pages.yml --ref feat/v1-specs-m1` 回傳 HTTP 401 Requires authentication。依 GitHub Authentication Guardrail，不重試登入或 device verification；目前正式 Pages 仍為先前成功部署的 `eaf569a` 版本。
 
 ## 下一個必要步驟
 
-1. 推送型別宣告與本狀態紀錄，確認 V1 verification workflow 成功。
+1. GitHub workflow dispatch 認證恢復後，發布已通過 CI 的 `7515273`，核對部署 SHA；不重複登入嘗試。
 2. 取得正式站網域瀏覽器存取授權後，完成歷史 Search 與 Drive 封存／維護的 production smoke；需要本人 Google OAuth 操作時記為 manual blocker。
-3. Google Drive 恢復連線後，將本批 commits、Pages runs、production schema／functions 與 smoke 結果追加至既有版本文件並讀回核對。
+3. 依已確認的 V1「工具內瀏覽器對話」需求解決 AI Chat 平台限制，驗證對話到 Task／Run 的端到端交接。
