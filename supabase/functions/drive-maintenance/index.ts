@@ -7,7 +7,7 @@ import {
   driveFolderQuery,
   hasForbiddenBackupKey,
   maintenanceDirectory,
-} from "../drive-archive/request.ts";
+} from "./request.ts";
 
 const cors = {
   "access-control-allow-origin": "*",
