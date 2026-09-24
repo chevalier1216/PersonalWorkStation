@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  codexExecArgs,
   defaultPort,
   executorPrompt,
   originAllowed,
@@ -87,19 +88,7 @@ async function execute(body) {
   const resultFile = join(temp, "result.json");
   try {
     const executable = process.platform === "win32" ? "codex.exe" : "codex";
-    const args = [
-      "exec",
-      "-C",
-      root,
-      "--sandbox",
-      "workspace-write",
-      "--approve-for-me",
-      "--output-schema",
-      schema,
-      "--output-last-message",
-      resultFile,
-      "-",
-    ];
+    const args = codexExecArgs(root, schema, resultFile);
     const exitCode = await new Promise((resolveCode, reject) => {
       const child = spawn(executable, args, {
         shell: false,
