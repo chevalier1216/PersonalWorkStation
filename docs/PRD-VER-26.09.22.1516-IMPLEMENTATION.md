@@ -36,8 +36,8 @@
 
 - 新版 workflow、priority reminder、exchange rate 與 Today module guard migrations 已套用 production。
 - 正式 Pages 已部署；Google 登入、Today、Calendar、匯率與 module order persistence 已取得 production 證據。
-- 本機 executor 的 health、輸入驗證、UI、workflow 與 verification gate 已自動測試；真實 Codex Run 仍需使用者願意消耗訂閱額度後再執行。
-- GitHub CLI issue API 目前回傳 authentication failure。依 Authentication Guardrail，不重複啟動 browser login、`gh auth login` 或 device verification；不阻塞本機修正、驗證與既有 Git push 路徑。
+- 本機 executor 的 health、輸入驗證、UI、workflow 與 verification gate 已自動測試。真實 `RUN-20260923-0001` 已驗證 production 錯誤回寫；Windows `codex.cmd` spawn 問題已改用 `codex.exe` 修正，Retry 入口也已部署。成功路徑只剩 Chrome 一次性的本機網路權限 blocker。
+- GitHub CLI authentication 已可用；issues #1、#2 已具備 production 證據並關閉。日常 GitHub 操作繼續沿用既有 CLI／Environment，不重跑 browser/device login。
 
 ## 本機驗證
 
