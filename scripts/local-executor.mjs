@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -94,6 +94,10 @@ async function execute(body) {
         shell: false,
         stdio: ["pipe", "ignore", "pipe"],
         windowsHide: true,
+        env: {
+          ...process.env,
+          CODEX_HOME: process.env.CODEX_HOME || join(homedir(), ".codex"),
+        },
       });
       let errors = "";
       child.stderr.on("data", (chunk) => {
