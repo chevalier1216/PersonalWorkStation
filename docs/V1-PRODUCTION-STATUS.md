@@ -1,6 +1,6 @@
 # V1 Production Status
 
-更新日期：2026-09-24
+更新日期：2026-09-25
 
 ## 已驗證
 
@@ -26,16 +26,19 @@
 - Supabase production 已部署 `drive-archive` 與 `drive-maintenance`；Functions 清單現有這兩項與 `refresh-exchange-rates`、`refresh-holidays`，共 4 項。
 - `drive-maintenance` 的 helper 已改為函式目錄內依賴，commit `e5c6631` 已推送目前分支；focused helper tests 3/3 通過。
 - 正式站 AI 摘要頁已可讀取 0 份摘要，Task 詳細資料可載入附件區與摘要建立表單，證明新增 schema 的基本讀取路徑可用。
-- 本機 Executor 第二次交付已進入 Codex CLI，並將 `--sandbox` 與 `--approve-for-me` 互斥參數錯誤回寫到 Run。已在本機移除互斥組合並加入回歸測試；尚待重新交付驗證成功路徑。
+- 本機 Executor 第二次交付已進入 Codex CLI，並將 `--sandbox` 與 `--approve-for-me` 互斥參數錯誤回寫到舊 Run；其後修正與成功路徑見下方新 Run 紀錄。
+- 已推送 `7165fe7` 修正 CLI 互斥參數與唯讀 Run 的提示，`4fd1583` 傳遞本機 `CODEX_HOME`。正式站新建唯讀 `RUN-20260925-0001`，交給本機 Codex CLI 後成功回寫；Graph 的 Trigger、Context、Execution、Verification、Output 全部為 Success，Task 可雙向開啟該 Run。此 Run 未修改檔案或發布。
+- 正式站已為該 Task 建立摘要版本 `v.26.09.25.0050` 與關聯摘要任務卡；摘要原文、來源與版本顯示於 Task 詳細資料。
+- 最近兩次 V1 verification workflow 在 `npm run build` 失敗，原因是 `codexExecArgs` 缺少 `.d.mts` 型別宣告。已補上宣告，本機 production build 通過；待新 commit 的 CI 驗證。
 
 ## 尚未驗證／人工 blocker
 
-- `RUN-20260923-0001` 已進入 Retrying。Codex success／Verification／Output 路徑仍待移除互斥 CLI 參數後重新交付驗證。
-- Summary 建立與 Search 查詢、Drive 附件封存／維護的 production 寫入路徑尚未完成 smoke；Google Drive OAuth 權限是否仍有效也待實測。
+- 舊 `RUN-20260923-0001` 因三次失敗已 Paused，保留完整錯誤歷史；成功路徑由新 Run 驗證。
+- 歷史 Search 查詢、Drive 附件封存／維護的 production 寫入路徑尚未完成 smoke；Google Drive OAuth 權限是否仍有效也待實測。開啟正式站歷史紀錄時，瀏覽器自動審查拒絕額外網域存取；未改用其他瀏覽器途徑繞過。
 - Google Drive 的既有版本文件可在指定「版本紀錄」子資料夾看到，但 Drive 畫面回報離線，無法開啟文件寫入本批交付紀錄；未將未完成同步描述為已完成。
 
 ## 下一個必要步驟
 
-1. 推送本機 Executor 參數修正，重新啟動 bridge，再交付 Retrying Run，確認 Execution、Verification、Output 與 Run success 回寫。
-2. 完成 Summary／Search／Drive 封存與維護的 production smoke；需要本人 Google OAuth 操作時記為 manual blocker。
+1. 推送型別宣告與本狀態紀錄，確認 V1 verification workflow 成功。
+2. 取得正式站網域瀏覽器存取授權後，完成歷史 Search 與 Drive 封存／維護的 production smoke；需要本人 Google OAuth 操作時記為 manual blocker。
 3. Google Drive 恢復連線後，將本批 commits、Pages runs、production schema／functions 與 smoke 結果追加至既有版本文件並讀回核對。
