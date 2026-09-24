@@ -13,6 +13,7 @@ V1 必須實際證明：
 - 可關聯 Google Calendar
 - 提醒規則可依工作日與重要度運作
 - AI Chat 可建立或觸發 Task
+- 工具內瀏覽器可開啟一般 ChatGPT 網頁對話，使用訂閱帳號的 GPT-5.6 Sol High，不切換 Work 或要求 OpenAI API key；外部新分頁不算通過
 - 可建立唯一 Run ID
 - Run 可關聯 Task / Project
 - Run 至少包含 Trigger / Context / Execution / Verification / Output
