@@ -22,7 +22,7 @@ GitHub CLI 的預設登入回傳 HTTP 401，但本機既有 Git Credential Manag
 
 Google Calendar 既有授權不代表 Google Drive 附件封存也已授權。Drive 封存與維護的 production 寫入流程仍待驗證。若正式站顯示 Google Drive OAuth 同意畫面，需由本人核對畫面列出的權限與帳號後完成同意；Codex 會把該步驟記為人工阻擋，不重複嘗試。請勿在對話貼密碼、一次性驗證碼或 service role key。
 
-2026-09-25 已在 Google Cloud Console 讀回目前狀態：project `project-workstation-509110` 的 Google Auth Platform → 資料存取權在非機密、機密、受限制三區均顯示「沒有可顯示的資料列」；目標對象仍是「外部／測試」，只有指定帳號 `racer831216@gmail.com` 一位測試使用者。2026-09-22 曾確認 Drive API 已啟用，但本次尚未重新核對 API 啟用狀態。前端登入／重新連結會要求 `calendar.calendarlist.readonly`、`calendar.events` 與 `drive.file`；尚未讀到指定帳號本次取得的實際授權範圍。
+2026-09-25 已在 Google Cloud Console 讀回目前狀態：project `project-workstation-509110` 的 Google Auth Platform → 資料存取權在非機密、機密、受限制三區均顯示「沒有可顯示的資料列」；目標對象仍是「外部／測試」，只有指定帳號 `racer831216@gmail.com` 一位測試使用者。Google Drive API 與 Google Calendar API 均顯示「API 已啟用」。前端登入／重新連結會要求 `calendar.calendarlist.readonly`、`calendar.events` 與 `drive.file`；尚未讀到指定帳號本次取得的實際授權範圍。
 
 若正式站驗收仍顯示 Drive 授權不足，請依下列順序處理；已存在的設定無須重做：
 
@@ -30,6 +30,8 @@ Google Calendar 既有授權不代表 Google Drive 附件封存也已授權。Dr
 2. 在 Google Auth Platform → Audience 維持目前唯一測試使用者，不把應用程式改成對外公開。
 3. 由本人在正式站使用指定帳號按「重新連結」，核對 Google 同意畫面的帳號及所列 Calendar／Drive 權限後完成同意。這一步必須由帳號持有人操作；Codex 不索取密碼或驗證碼。
 4. 返回工作台後再做一次小型附件的上傳、封存、重新開啟與失敗時原件保留測試。只有全部實測通過，才能把 Drive production 路徑改列為已驗證。
+
+附件區現已提供「重新連結 Google Drive」入口；本機桌面／手機回歸測試驗證了入口與授權錯誤顯示，但它不能代替真實 Google 同意或 production 封存。若 Google 權杖到期，可由此入口重新授權。依 [Google OAuth 說明](https://developers.google.com/identity/protocols/oauth2)，外部／測試狀態下，要求 Calendar／Drive 等非基本身分權限的 refresh token 可能在七天後失效；[Supabase 文件](https://supabase.com/docs/guides/auth/social-login)也說明 Supabase 不會代替應用程式更新 Google provider token。目前程式未要求 Google offline access，因此需要把「重新連結」視為現階段恢復方法，不能宣稱已有長期自動續期。
 
 Google 官方將 `drive.file` 定義為針對本應用建立或由使用者交給本應用的檔案權限；[權限說明](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)與 [Supabase Google 登入設定](https://supabase.com/docs/guides/auth/social-login/auth-google) 可供核對。依 [Google Drive API 用量與定價](https://developers.google.com/workspace/drive/api/guides/limits)，標準使用目前沒有額外費用，低於每日 400,000,000 quota units 門檻不計費；本專案只做小型 smoke，接近門檻或計費政策改變時必須先停下依 Cost Guardrail 告知。
 

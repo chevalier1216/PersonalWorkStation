@@ -140,6 +140,17 @@ export function App() {
       }}
       search={{ search: historySearch }}
       attachments={{
+        reconnect: async () => {
+          const { error } = await supabase!.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo: window.location.origin + import.meta.env.BASE_URL,
+              scopes: googleCalendarScopes,
+              queryParams: { prompt: "consent" },
+            },
+          });
+          if (error) throw error;
+        },
         load: () => attachmentCommand("load"),
         upload: uploadAttachment,
         open: openAttachment,

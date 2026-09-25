@@ -98,6 +98,8 @@ test("Drive failure keeps the source and Retry archives the same attachment", as
   await expect(dialog.getByRole("alert")).toContainText("測試用 Drive 中斷");
   await expect(item.getByText("封存失敗", { exact: true })).toBeVisible();
   await expect(item.getByRole("button", { name: "開啟" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "重新連結 Google Drive" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("測試用 Google 授權中斷");
 
   await openBoard(page);
   await page.getByRole("button", { name: title, exact: true }).click();

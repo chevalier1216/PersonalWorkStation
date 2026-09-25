@@ -819,6 +819,21 @@ export function TaskDetails({
               附件可留在私人 Storage，或驗證完成後封存至 Google Drive。
             </p>
           </div>
+          {attachments?.reconnect && (
+            <button
+              type="button"
+              disabled={attachmentBusy}
+              onClick={() =>
+                void attachments.reconnect!().catch((reason) =>
+                  setAttachmentError(
+                    reason instanceof Error ? reason.message : String(reason),
+                  ),
+                )
+              }
+            >
+              重新連結 Google Drive
+            </button>
+          )}
           <label className="file-button">
             {attachmentBusy ? "處理中…" : "新增附件"}
             <input

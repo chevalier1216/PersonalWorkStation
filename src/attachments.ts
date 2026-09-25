@@ -187,6 +187,7 @@ export async function runDriveMaintenance(
 }
 
 export type AttachmentOperations = {
+  reconnect?: () => Promise<void>;
   load: () => Promise<AttachmentState>;
   upload: (
     taskId: string,

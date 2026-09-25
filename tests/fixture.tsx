@@ -168,6 +168,9 @@ const attachmentCommand = async (
   return state;
 };
 const attachments: AttachmentOperations = {
+  reconnect: async () => {
+    throw new Error("測試用 Google 授權中斷");
+  },
   load: () => attachmentCommand("load"),
   upload: (taskId, file, noteId) =>
     attachmentCommand("record_upload", {
