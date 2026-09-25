@@ -22,6 +22,17 @@ GitHub CLI 的預設登入回傳 HTTP 401，但本機既有 Git Credential Manag
 
 Google Calendar 既有授權不代表 Google Drive 附件封存也已授權。Drive 封存與維護的 production 寫入流程仍待驗證。若正式站顯示 Google Drive OAuth 同意畫面，需由本人核對畫面列出的權限與帳號後完成同意；Codex 會把該步驟記為人工阻擋，不重複嘗試。請勿在對話貼密碼、一次性驗證碼或 service role key。
 
+2026-09-25 已在 Google Cloud Console 讀回目前狀態：project `project-workstation-509110` 的 Google Auth Platform → 資料存取權在非機密、機密、受限制三區均顯示「沒有可顯示的資料列」；目標對象仍是「外部／測試」，只有指定帳號 `racer831216@gmail.com` 一位測試使用者。2026-09-22 曾確認 Drive API 已啟用，但本次尚未重新核對 API 啟用狀態。前端登入／重新連結會要求 `calendar.calendarlist.readonly`、`calendar.events` 與 `drive.file`；尚未讀到指定帳號本次取得的實際授權範圍。
+
+若正式站驗收仍顯示 Drive 授權不足，請依下列順序處理；已存在的設定無須重做：
+
+1. 在 [Google Cloud Console 的資料存取權頁](https://console.cloud.google.com/auth/scopes?project=project-workstation-509110) 選定 `project-workstation-509110`，加入登入基本權限 `openid`、`userinfo.email`、`userinfo.profile` 與上述三項 Calendar／Drive 權限。Codex 已在頁面選好這六項，但因這會擴大應用程式對 Google 帳號的資料存取，目前停在尚未儲存的畫面等待明確確認。
+2. 在 Google Auth Platform → Audience 維持目前唯一測試使用者，不把應用程式改成對外公開。
+3. 由本人在正式站使用指定帳號按「重新連結」，核對 Google 同意畫面的帳號及所列 Calendar／Drive 權限後完成同意。這一步必須由帳號持有人操作；Codex 不索取密碼或驗證碼。
+4. 返回工作台後再做一次小型附件的上傳、封存、重新開啟與失敗時原件保留測試。只有全部實測通過，才能把 Drive production 路徑改列為已驗證。
+
+Google 官方將 `drive.file` 定義為針對本應用建立或由使用者交給本應用的檔案權限；[權限說明](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)與 [Supabase Google 登入設定](https://supabase.com/docs/guides/auth/social-login/auth-google) 可供核對。依 [Google Drive API 用量與定價](https://developers.google.com/workspace/drive/api/guides/limits)，標準使用目前沒有額外費用，低於每日 400,000,000 quota units 門檻不計費；本專案只做小型 smoke，接近門檻或計費政策改變時必須先停下依 Cost Guardrail 告知。
+
 ### 工具內 ChatGPT 對話形式
 
 新版 PRD 要求在工作台內使用一般 ChatGPT 網頁、以現有訂閱的 GPT-5.6 Sol High 對話，不消耗 Work 額度或透過付費 API。現有 Web 版只會開新分頁，尚未符合「工具內瀏覽器」驗收。若標準網頁嵌入受平台限制，需確認是否接受 Windows 桌面外殼提供內建瀏覽器；這是尚未定案的產品形式，未經決定前不把外部分頁當成完成。
