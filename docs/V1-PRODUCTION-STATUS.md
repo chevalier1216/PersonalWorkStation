@@ -18,6 +18,8 @@
 - GitHub issue #2 的 runtime variables / Pages deployment 問題已修復；workflow 的 configuration check、build、artifact upload 與 deploy 均成功。
 - GitHub issue #1 已新增 `202609230002_today_preferences_module_guard.sql` 並套用 production。正式站將玉山匯率模組上移、顯示「已儲存」、重新整理後保持順序，再還原原版面，確認 constraint 不再阻擋目前 V1 module keys。
 - GitHub issues #1、#2 已確認完成並關閉。
+- 2026-09-25 再次核對 issues #1、#2：`202609230002_today_preferences_module_guard.sql` 保留全部 V1 Today 模組並拒絕未知 key；定向資料庫測試 1/1、Today 桌面／手機 E2E 4/4 通過。這是本機回歸驗證；production 排序保存的實測證據仍為上述先前紀錄。
+- GitHub Pages workflow run `36078527439` 已成功將目前工作分支 commit `3b09f2bdc12862cf67f63a9c2f032b55a63ad8ba` 發布至 <https://chevalier1216.github.io/PersonalWorkStation/>；`Verify public runtime configuration`、Build、artifact upload 與 Deploy 均成功，issue #2 的設定故障未重現。此處驗證的是部署工作流程；本次尚未重新操作正式站登入後畫面。
 - `202609220001_workflow_execution_center.sql` 與 `202609220002_priority_reminders.sql` 已套用 production；真實建立 `RUN-20260923-0001` 證實 production RPC 與 workflow schema 可用。
 - Pages workflow run `35857373736` 已成功部署 commit `c692000`，補上 production HTTPS 頁面連線 loopback bridge 所需的 Local Network Access 標記與 bridge CORS opt-in。
 - Pages workflow run `35857954288` 已成功部署 commit `eaf569a`；Windows bridge 改用可直接 spawn 的 `codex.exe`，並讓 Retrying Run 可再次交給本機 Executor。
@@ -38,10 +40,9 @@
 - 舊 `RUN-20260923-0001` 因三次失敗已 Paused，保留完整錯誤歷史；成功路徑由新 Run 驗證。
 - 歷史 Search 查詢、Drive 附件封存／維護的 production 寫入路徑尚未完成 smoke；Google Drive OAuth 權限是否仍有效也待實測。開啟正式站歷史紀錄時，瀏覽器自動審查拒絕額外網域存取；未改用其他瀏覽器途徑繞過。
 - AI Chat 目前仍以新瀏覽器分頁開啟 ChatGPT；使用者要求的「工作台內瀏覽器對話」尚未完成，不以既有連結或固定 Prompt 視為完成。
-- 嘗試發布 `7515273` 至 GitHub Pages 時，既有 `gh workflow run pages.yml --ref feat/v1-specs-m1` 回傳 HTTP 401 Requires authentication。依 GitHub Authentication Guardrail，不重試登入或 device verification；目前正式 Pages 仍為先前成功部署的 `eaf569a` 版本。
+- `gh` 預設登入仍回傳 HTTP 401；本次改用本機既有 Git Credential Manager 憑證，僅在當次程序記憶體提供給 GitHub CLI，成功觸發 Pages workflow。未重新登入、未儲存新 token。若該憑證日後失效，需重新評估 GitHub 授權。
 
 ## 下一個必要步驟
 
-1. GitHub workflow dispatch 認證恢復後，發布已通過 CI 的 `7515273`，核對部署 SHA；不重複登入嘗試。
-2. 取得正式站網域瀏覽器存取授權後，完成歷史 Search 與 Drive 封存／維護的 production smoke；需要本人 Google OAuth 操作時記為 manual blocker。
-3. 依已確認的 V1「工具內瀏覽器對話」需求解決 AI Chat 平台限制，驗證對話到 Task／Run 的端到端交接。
+1. 取得正式站網域瀏覽器存取授權後，確認新版本的登入後畫面，並完成歷史 Search 與 Drive 封存／維護的 production smoke；需要本人 Google OAuth 操作時記為 manual blocker。
+2. 依已確認的 V1「工具內瀏覽器對話」需求解決 AI Chat 平台限制，驗證對話到 Task／Run 的端到端交接。
