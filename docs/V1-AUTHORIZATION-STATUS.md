@@ -31,7 +31,7 @@ Google Calendar 既有授權不代表 Google Drive 附件封存也已授權。Dr
 3. 由本人在正式站使用指定帳號按「重新連結」，核對 Google 同意畫面的帳號及所列 Calendar／Drive 權限後完成同意。這一步必須由帳號持有人操作；Codex 不索取密碼或驗證碼。
 4. 返回工作台後再做一次小型附件的上傳、封存、重新開啟與失敗時原件保留測試。只有全部實測通過，才能把 Drive production 路徑改列為已驗證。
 
-附件區現已提供「重新連結 Google Drive」入口；本機桌面／手機回歸測試驗證了入口與授權錯誤顯示，但它不能代替真實 Google 同意或 production 封存。若 Google 權杖到期，可由此入口重新授權。依 [Google OAuth 說明](https://developers.google.com/identity/protocols/oauth2)，外部／測試狀態下，要求 Calendar／Drive 等非基本身分權限的 refresh token 可能在七天後失效；[Supabase 文件](https://supabase.com/docs/guides/auth/social-login)也說明 Supabase 不會代替應用程式更新 Google provider token。目前程式未要求 Google offline access，因此需要把「重新連結」視為現階段恢復方法，不能宣稱已有長期自動續期。
+附件區與儲存維護頁現已提供「重新連結 Google Drive」入口；本機桌面／手機回歸測試驗證了入口與授權錯誤顯示，但它不能代替真實 Google 同意或 production 封存。若 Google 權杖到期，可由此入口重新授權。依 [Google OAuth 說明](https://developers.google.com/identity/protocols/oauth2)，外部／測試狀態下，要求 Calendar／Drive 等非基本身分權限的 refresh token 可能在七天後失效；[Supabase 文件](https://supabase.com/docs/guides/auth/social-login)也說明 Supabase 不會代替應用程式更新 Google provider token。目前程式未要求 Google offline access，因此需要把「重新連結」視為現階段恢復方法，不能宣稱已有長期自動續期。
 
 Google 官方將 `drive.file` 定義為針對本應用建立或由使用者交給本應用的檔案權限；[權限說明](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)與 [Supabase Google 登入設定](https://supabase.com/docs/guides/auth/social-login/auth-google) 可供核對。依 [Google Drive API 用量與定價](https://developers.google.com/workspace/drive/api/guides/limits)，標準使用目前沒有額外費用，低於每日 400,000,000 quota units 門檻不計費；本專案只做小型 smoke，接近門檻或計費政策改變時必須先停下依 Cost Guardrail 告知。
 

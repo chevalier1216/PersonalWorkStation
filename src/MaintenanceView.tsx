@@ -80,6 +80,21 @@ export function MaintenanceView({
           <p className="muted">容量接近 70% 時提醒；不會靜默刪除資料。</p>
         </div>
         <div className="toolbar">
+          {operations?.reconnect && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void operations.reconnect!().catch((reason) =>
+                  setError(
+                    reason instanceof Error ? reason.message : String(reason),
+                  ),
+                )
+              }
+            >
+              重新連結 Google Drive
+            </button>
+          )}
           <button
             disabled={busy || !operations}
             onClick={() => void execute("measure")}

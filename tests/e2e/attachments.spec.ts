@@ -115,10 +115,12 @@ test("capacity snapshots and metadata backup persist", async ({ page }) => {
   await page.goto("/PersonalWorkStation/tests/fixture.html");
   await page.getByRole("button", { name: "設定", exact: true }).click();
   const maintenance = page.getByRole("region", { name: "儲存與維護" });
+  await maintenance.getByRole("button", { name: "重新連結 Google Drive" }).click();
+  await expect(maintenance.getByRole("alert")).toContainText("測試用 Google 授權中斷");
   await maintenance.getByRole("button", { name: "更新容量" }).click();
   await expect(maintenance.getByText("Supabase Database")).toBeVisible();
   await expect(maintenance.getByText("Supabase Storage")).toBeVisible();
-  await expect(maintenance.getByText("Google Drive")).toBeVisible();
+  await expect(maintenance.getByRole("heading", { name: "Google Drive" })).toBeVisible();
   await expect(maintenance.getByRole("status")).toHaveText("容量已更新");
 
   await maintenance
