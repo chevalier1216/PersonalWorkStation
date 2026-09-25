@@ -6,13 +6,13 @@
 
 Codex 自動操作[正式站](https://chevalier1216.github.io/PersonalWorkStation/)曾被審查以「額外網域操作」拒絕。現有訊息沒有指出是 Cost Guardrail，也沒有提供更細的拒絕原因；不能把它歸因於使用者的費用規則。正式站瀏覽本身不是啟用付費服務。審查狀態未改變前不重試或換工具繞過；需在正式站點擊的驗收由本人完成。
 
-## 需要本人做的事
+## 仍需本人驗收
 
-1. **正式站複驗 Issue #1／#2**：以指定帳號登入，確認 Today 和任務看板載入；在 Today「自訂版面」移動一個模組，看到「已儲存」後重新整理，確認順序保持，再還原。兩張 issue 已修復、關閉且有先前正式環境證據；這一步補最新畫面證據，不需 Work 額度。
-2. **工作台自動封存驗收**：2026-09-25 本人提供的 Google 帳號第三方連線截圖顯示，`PersonalWorkStation` 已獲得存取「透過這個應用程式使用的特定 Google 雲端硬碟檔案」及 Calendar 的授權。無需為了確認授權而再次連結；下一步是用工作台的小型附件實測封存與取回。若測試回報權限不足，再由本人核對帳號並重新連結；不要提供密碼或驗證碼。
+- **工作台自動封存驗收**：2026-09-25 本人提供的 Google 帳號第三方連線截圖顯示，`PersonalWorkStation` 已獲得存取「透過這個應用程式使用的特定 Google 雲端硬碟檔案」及 Calendar 的授權。無需為了確認授權而再次連結；下一步是用工作台的小型附件實測封存與取回。若測試回報權限不足，再由本人核對帳號並重新連結；不要提供密碼或驗證碼。
 
 ## 已完成與仍未通過
 
+- **Issue #1／#2 正式站複驗：使用者於 2026-09-25 回報人工驗證通過**。範圍為指定帳號登入、Today 和任務看板載入，以及 Today 自訂版面移動、顯示「已儲存」、重新整理後順序保持並還原；此為使用者回報，不是 Codex 親自操作的證據。
 - 已在指定[原始資料夾](https://drive.google.com/drive/folders/1GCgotx89aY6gRlt8mR7np9yDgE17FKYE)內建立並讀回 [Archive](https://drive.google.com/drive/folders/1KeuAJD5k2H_b1Co46kAdpaBWX8n2urLK)。帳號已授予特定 Drive 檔案權限，但這不證明工作台能存取既有 `Archive` 資料夾；原有自動封存程式仍使用另一條路徑。自動封存、重新開啟、失敗重試與備份尚未通過正式環境驗收。
 - 歷史搜尋已有本機測試，正式站真實查詢未驗證；尚無目前功能失敗的證據。
 - 本機 Codex bridge 已有一筆正式站**唯讀 Run** 成功；一般執行任務的 Artifact、Human Gate、Calendar／GitHub 關聯尚缺完整正式環境驗收。早期 Windows 啟動和 CLI 參數錯誤已修正，不能當作目前仍失敗。
@@ -22,4 +22,4 @@ Codex 自動操作[正式站](https://chevalier1216.github.io/PersonalWorkStatio
 
 ## 建議順序
 
-先用一次正式站登入完成 Issue #1／#2 與歷史搜尋複驗，再用小型附件測試 Drive 自動封存與取回；只有出現權限錯誤才重新連結。其後核對每週假日同步與一般 Run 的正式證據，最後部署最新分支並依 `07_ACCEPTANCE_AND_ROADMAP.md` 做整體 smoke。任何新付費服務仍須先依 `08-EXECUTION-RULES.md` 的 Cost Guardrail 告知並取得授權。
+Issue #1／#2 人工複驗已完成；接著在正式站測歷史搜尋，並用小型附件測試 Drive 自動封存與取回；只有出現權限錯誤才重新連結。其後核對每週假日同步與一般 Run 的正式證據，最後部署最新分支並依 `07_ACCEPTANCE_AND_ROADMAP.md` 做整體 smoke。任何新付費服務仍須先依 `08-EXECUTION-RULES.md` 的 Cost Guardrail 告知並取得授權。
