@@ -13,7 +13,6 @@ V1 必須實際證明：
 - 可關聯 Google Calendar
 - 提醒規則可依工作日與重要度運作
 - AI Chat 可建立或觸發 Task
-- 工具內瀏覽器可開啟一般 ChatGPT 網頁對話，使用訂閱帳號的 GPT-5.6 Sol High，不切換 Work 或要求 OpenAI API key；外部新分頁不算通過
 - 可建立唯一 Run ID
 - Run 可關聯 Task / Project
 - Run 至少包含 Trigger / Context / Execution / Verification / Output
@@ -40,6 +39,10 @@ V1 必須實際證明：
 - 桌面通知
 - 逐 Token 顯示 AI 私有推理
 - 額外付費 API 作為必要依賴
+
+### 暫存項目（使用者於 2026-09-25 調整）
+
+- 工具內一般 ChatGPT 網頁對話與從一般「對話」直接操作真實工作台 Task 暫不列入 V1 驗收。當前未取得可驗證的對話操作連線，相關入口須停用；未來重啟時仍依 `04_AI_CHAT.md` 驗證，不得以外部分頁、Work 額度或付費 API 代替。
 
 ## 3. 後續 Roadmap
 

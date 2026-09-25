@@ -6,7 +6,9 @@
 
 AI Chat 是工作台內的需求與討論入口。
 
-V1 工具須提供工具內瀏覽器，開啟一般 ChatGPT 網頁對話，使用目前訂閱帳號的 GPT-5.6 Sol High。對話不得導向 Work 模式、消耗 Work 額度或依賴 OpenAI API key。外部新分頁連結與固定 Prompt 只能作為暫時交接，不能算工具內對話完成。
+工具內一般 ChatGPT 網頁對話原規格暫存，不列入目前 V1 交付與驗收。2026-09-25 的一般「對話」實測未取得可操作 PersonalWorkStation 真實 Task 的連線；在可驗證的對話操作能力建立前，工作台停用 ChatGPT 開啟與摘要交接入口。不得改用 Work 額度或付費 API 假裝滿足此需求。
+
+未來恢復此項目時，仍須使用目前訂閱帳號的一般對話，並驗證 GPT-5.6 Sol High、工具內瀏覽器及對真實 Task 的操作能力；外部新分頁與固定 Prompt 不算完成。當前可用的 Task／Run 確認建立及手動 Summary 不依賴 ChatGPT 對話入口。
 
 它負責：
 

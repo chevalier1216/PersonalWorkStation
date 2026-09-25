@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   priorityLabels,
   rawDoingMinutes,
@@ -24,11 +24,6 @@ import {
   type Attachment,
   type AttachmentOperations,
 } from "./attachments";
-import {
-  buildChatGPTUrl,
-  buildSummaryPrompt,
-  copyChatGPTPrompt,
-} from "./chatgpt";
 import { workflowStatusLabels, type WorkflowRun } from "./workflow";
 
 type Run = (
@@ -125,7 +120,6 @@ export function TaskDetails({
   const [summaryCompleted, setSummaryCompleted] = useState("");
   const [summaryCancelled, setSummaryCancelled] = useState("");
   const [summarySuperseded, setSummarySuperseded] = useState("");
-  const [summaryPromptCopied, setSummaryPromptCopied] = useState(false);
   const [attachmentState, setAttachmentState] = useState(emptyAttachmentState);
   const [attachmentBusy, setAttachmentBusy] = useState(Boolean(attachments));
   const [attachmentError, setAttachmentError] = useState("");
@@ -154,21 +148,6 @@ export function TaskDetails({
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   const taskAttachments = attachmentState.attachments.filter(
     (item) => item.task_id === task.id,
-  );
-  const summaryPrompt = useMemo(
-    () =>
-      buildSummaryPrompt({
-        task,
-        notes,
-        checklist,
-        history: data.history.filter((item) => item.task_id === task.id),
-        previous_summary: taskSummaries[0] ?? null,
-      }),
-    [task, notes, checklist, data.history, taskSummaries],
-  );
-  const summaryHandoffUrl = useMemo(
-    () => buildChatGPTUrl(summaryPrompt),
-    [summaryPrompt],
   );
 
   useEffect(() => {
@@ -930,29 +909,10 @@ export function TaskDetails({
               來源 Task：{task.title}。Summary 獨立保存，不覆寫原 Task。
             </p>
           </div>
-          <a
-            className="primary chatgpt-link"
-            href={summaryHandoffUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => {
-              void copyChatGPTPrompt(summaryPrompt).then(
-                setSummaryPromptCopied,
-              );
-            }}
-          >
-            在 ChatGPT 整理
-          </a>
         </div>
         <p className="subtle">
-          會開啟一般對話並複製目前 Task
-          context。請確認「對話／高」後送出，再將結果貼回下方保存。
+          ChatGPT 對話操作尚未接通，入口暫停。仍可在下方手動建立 Summary。
         </p>
-        {summaryPromptCopied && (
-          <p className="success" role="status">
-            Summary 提示已複製。
-          </p>
-        )}
         {summaryError && (
           <p className="error" role="alert">
             {summaryError}

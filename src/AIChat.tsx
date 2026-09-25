@@ -1,9 +1,5 @@
-import { useMemo, useState } from "react";
-import {
-  buildChatGPTPrompt,
-  buildChatGPTUrl,
-  MAX_CHATGPT_PROMPT_LENGTH,
-} from "./chatgpt";
+import { useState } from "react";
+import { MAX_CHATGPT_PROMPT_LENGTH } from "./chatgpt";
 import type { Priority } from "./domain";
 
 export type AITaskDraft = {
@@ -28,18 +24,6 @@ export function AIChat({
   const [draftPriority, setDraftPriority] = useState<Priority>("Regular");
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftSaved, setDraftSaved] = useState("");
-  const handoff = useMemo(() => {
-    if (!message.trim()) return null;
-    try {
-      const prompt = buildChatGPTPrompt(message);
-      return { prompt, url: buildChatGPTUrl(prompt) };
-    } catch (reason) {
-      return {
-        error: reason instanceof Error ? reason.message : String(reason),
-      };
-    }
-  }, [message]);
-
   return (
     <section
       className={compact ? "ai-chat compact" : "ai-chat full"}
@@ -53,12 +37,9 @@ export function AIChat({
         </div>
       </div>
       <div className="chat-panel">
-        <p>
-          輸入需求後可先以相容的 ChatGPT 網頁入口討論，或直接在下方建立 Task 與
-          Run。
-        </p>
+        <p>輸入需求後，可在下方確認建立 Task 與 Run。</p>
         <p className="subtle">
-          網頁入口只用於相容問答，不代表 Run 已執行。尚未連接 executor 時，Run
+          ChatGPT 對話操作尚未接通，入口暫停。尚未連接 executor 時，Run
           會如實顯示 Waiting External。
         </p>
         <label>
@@ -73,29 +54,10 @@ export function AIChat({
             }}
           />
         </label>
-        {handoff && "error" in handoff && (
-          <p className="error" role="alert">
-            {handoff.error}
-          </p>
-        )}
         {error && (
           <p className="error" role="alert">
             {error}
           </p>
-        )}
-        {handoff && !("error" in handoff) ? (
-          <a
-            className="primary chatgpt-link"
-            href={handoff.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            在 ChatGPT 開啟
-          </a>
-        ) : (
-          <button className="primary" disabled>
-            在 ChatGPT 開啟
-          </button>
         )}
         {createTask && (
           <form

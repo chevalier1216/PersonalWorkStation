@@ -44,11 +44,12 @@ test("history search locates a Note and manual Summary versions persist", async 
   dialog = page.getByRole("dialog", { name: "任務詳細資料" });
   await expect(dialog.locator(".search-hit")).toContainText(note);
 
-  const handoff = dialog.getByRole("link", { name: "在 ChatGPT 整理" });
-  const url = new URL((await handoff.getAttribute("href"))!);
-  expect(url.origin).toBe("https://chatgpt.com");
-  expect(url.searchParams.get("prompt")).toContain(title);
-  expect(url.searchParams.get("prompt")).toContain(note);
+  await expect(
+    dialog.getByRole("link", { name: "在 ChatGPT 整理" }),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByText("ChatGPT 對話操作尚未接通，入口暫停。", { exact: false }),
+  ).toBeVisible();
 
   await saveSummary(dialog, "發佈準備與驗證結果", "完成持久化驗證。");
   await expect(

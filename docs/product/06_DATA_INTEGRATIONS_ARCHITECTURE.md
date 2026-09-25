@@ -37,6 +37,10 @@ Supabase 容量達 70% 且沒有擴充方案時需提醒。
 
 大型附件 / Raw Log 可由 AI Agent 搬移至 Drive，只在主資料庫保留索引與摘要。
 
+使用者指定的人工／既有 Drive Connector 封存位置為 [Personal WorkStation Project / Archive](https://drive.google.com/drive/folders/1KeuAJD5k2H_b1Co46kAdpaBWX8n2urLK)，它是[原始專案資料夾](https://drive.google.com/drive/folders/1GCgotx89aY6gRlt8mR7np9yDgE17FKYE)的子資料夾。將原始資料夾中的檔案移入 `Archive` 即為此路徑的封存方式。
+
+此資料夾由 Drive Connector 建立，不能據此推定 PersonalWorkStation 的 Google OAuth `drive.file` 已取得對該資料夾的存取權。現有工作台 `drive-archive` 函式仍使用其既有的 `PersonalWorkStation/Attachments/YYYY/MM` 路徑；在完成 OAuth 與實際讀寫驗證前，不得宣稱工作台自動封存已改用上述資料夾。
+
 ## 4. GitHub
 
 GitHub Repository / Issue / PR / Commit 作為開發類工作的 canonical execution state。

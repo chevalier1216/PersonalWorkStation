@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("AI entry keeps compatible web chat beside Task and Run intake", async ({
+test("AI entry pauses chat handoff while keeping Task and Run intake", async ({
   page,
 }) => {
   await page.goto("/PersonalWorkStation/tests/fixture.html");
@@ -13,19 +13,17 @@ test("AI entry keeps compatible web chat beside Task and Run intake", async ({
   ).toBeVisible();
   await chat.getByLabel("需求或問題").fill("整理今天的工作紀錄");
 
-  const link = chat.getByRole("link", { name: "在 ChatGPT 開啟" });
-  const href = await link.getAttribute("href");
-  expect(href).toBeTruthy();
-  const url = new URL(href!);
-  expect(url.origin).toBe("https://chatgpt.com");
-  expect(url.searchParams.get("mode")).toBe("chat");
-  expect(url.searchParams.get("prompt")).toContain("GPT-5.6 Sol High");
-  expect(url.searchParams.get("prompt")).toContain("不要切換到 Work");
-  expect(url.searchParams.get("prompt")).toContain("整理今天的工作紀錄");
-  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(
+    chat.getByText("ChatGPT 對話操作尚未接通，入口暫停。", { exact: false }),
+  ).toBeVisible();
+  await expect(chat.getByRole("link", { name: "在 ChatGPT 開啟" })).toHaveCount(
+    0,
+  );
 });
 
-test("compatible web chat does not block the Task workspace", async ({ page }) => {
+test("compatible web chat does not block the Task workspace", async ({
+  page,
+}) => {
   await page.goto("/PersonalWorkStation/tests/fixture.html");
   const quickChat = page.getByRole("region", { name: "AI 快問" });
   await expect(

@@ -2,6 +2,8 @@
 
 更新日期：2026-09-25
 
+最新補充：同日依使用者決定，在指定 Google Drive 原始專案資料夾建立 `Archive` 子資料夾，並讀回確認父資料夾；這是人工／Drive Connector 封存位置，**尚未驗證**工作台 `drive.file` 對它的存取。一般 ChatGPT「對話」兩次唯讀測試未取得真實 Task 操作證據，已暫存工具內 ChatGPT 對話需求並於工作分支停用其開啟／摘要交接入口，保留 Task／Run 建立及手動 Summary。本機 production build 與相關桌面／手機 E2E 10/10 通過；本檔下方較早的 AI Chat 待辦敘述屬歷史狀態。正式站最新畫面仍待本人依 `V1-AUTHORIZATION-STATUS.md` 驗收。
+
 ## 已驗證
 
 - 本批功能 commit `fb759f2` 已推送至 `origin/feat/v1-specs-m1`。
