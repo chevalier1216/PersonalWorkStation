@@ -97,6 +97,31 @@ describe("M6 attachment archive and maintenance", () => {
     });
   });
 
+  it("claims an attachment once and never restarts one already archived", async () => {
+    const state = await ctx.runAttachment("record_upload", {
+      task_id: taskId,
+      filename: "double-click.txt",
+      mime_type: "text/plain",
+      size_bytes: 12,
+      source_storage_path: `${alice}/${taskId}/double-click.txt`,
+    });
+    const id = state.attachments[0].id;
+    expect(await ctx.claimAttachment(id)).toBe(true);
+    expect(await ctx.claimAttachment(id)).toBe(false);
+    await ctx.runAttachment("archive_success", {
+      id,
+      drive_file_id: "drive-double-click",
+      drive_web_view_link:
+        "https://drive.google.com/open?id=drive-double-click",
+      drive_path: "PersonalWorkStation/Attachments/2026/09/double-click.txt",
+    });
+    await ctx.runAttachment("archive_source_deleted", { id });
+    expect(await ctx.claimAttachment(id)).toBe(false);
+    expect(
+      (await ctx.runAttachment("load")).attachments.find((a) => a.id === id),
+    ).toMatchObject({ archive_status: "archived", archive_error: "" });
+  });
+
   it("records capacity warnings and metadata backup outcomes without secrets", async () => {
     let state = await ctx.runAttachment("record_capacity", {
       service: "supabase_storage",

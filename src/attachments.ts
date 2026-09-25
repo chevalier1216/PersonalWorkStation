@@ -144,7 +144,8 @@ export async function openAttachment(attachment: Attachment) {
   if (!supabase) throw new Error("尚未設定資料連線");
   await attachmentCommand("mark_accessed", { id: attachment.id });
   if (
-    attachment.archive_status === "archived" &&
+    (attachment.archive_status === "archived" ||
+      attachment.source_deleted_at) &&
     attachment.drive_web_view_link
   )
     return attachment.drive_web_view_link;
@@ -167,9 +168,43 @@ export async function archiveAttachment(id: string, googleAccessToken: string) {
       google_access_token: googleAccessToken,
     },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(await functionErrorMessage(error));
   if (data?.error) throw new Error(String(data.error));
   return normalizeAttachmentState(data as Partial<AttachmentState>);
+}
+
+async function functionErrorMessage(error: Error & { context?: unknown }) {
+  if (error.context instanceof Response) {
+    const body = await error.context
+      .clone()
+      .json()
+      .catch(() => null);
+    if (typeof body?.error === "string") return body.error;
+  }
+  return error.message;
+}
+
+export async function attachmentFolderUrl(
+  id: string,
+  googleAccessToken: string,
+) {
+  if (!supabase) throw new Error("尚未設定資料連線");
+  if (!googleAccessToken) throw new Error("請重新連結 Google Drive 授權");
+  const { data, error } = await supabase.functions.invoke("drive-archive", {
+    body: {
+      action: "folder",
+      attachment_id: id,
+      google_access_token: googleAccessToken,
+    },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(String(data.error));
+  const url = String(data?.folder_url ?? "");
+  if (
+    !/^https:\/\/drive\.google\.com\/drive\/folders\/[A-Za-z0-9_-]+$/.test(url)
+  )
+    throw new Error("Drive 資料夾連結無效");
+  return url;
 }
 
 export async function runDriveMaintenance(
@@ -196,6 +231,7 @@ export type AttachmentOperations = {
   ) => Promise<AttachmentState>;
   open: (attachment: Attachment) => Promise<string>;
   archive: (id: string) => Promise<AttachmentState>;
+  folder: (id: string) => Promise<string>;
   measure: () => Promise<AttachmentState>;
   backup: () => Promise<AttachmentState>;
 };

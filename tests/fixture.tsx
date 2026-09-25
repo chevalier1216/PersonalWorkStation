@@ -15,6 +15,7 @@ import workflowMigration from "../supabase/migrations/202609220001_workflow_exec
 import priorityRemindersMigration from "../supabase/migrations/202609220002_priority_reminders.sql?raw";
 import exchangeRateMigration from "../supabase/migrations/202609230001_exchange_rates.sql?raw";
 import todayPreferencesGuardMigration from "../supabase/migrations/202609230002_today_preferences_module_guard.sql?raw";
+import archiveClaimMigration from "../supabase/migrations/202609250001_archive_claim.sql?raw";
 import type { SummaryOperations, SummaryState } from "../src/summary";
 import type { SearchField, SearchResult } from "../src/search";
 import type { AttachmentOperations, AttachmentState } from "../src/attachments";
@@ -76,6 +77,10 @@ const hasRates = await db.query<{ exists: boolean }>(
 );
 if (!hasRates.rows[0].exists) await db.exec(exchangeRateMigration);
 await db.exec(todayPreferencesGuardMigration);
+const hasArchiveClaim = await db.query<{ exists: boolean }>(
+  "select to_regprocedure('public.attachment_archive_claim(uuid)') is not null as exists",
+);
+if (!hasArchiveClaim.rows[0].exists) await db.exec(archiveClaimMigration);
 const execute: Execute = async (action, payload = {}) => {
   if (new URLSearchParams(location.search).get("fail") === action)
     throw new Error("測試用連線中斷");
@@ -167,6 +172,18 @@ const attachmentCommand = async (
   await db.syncToFs();
   return state;
 };
+const claimAttachment = async (id: string) =>
+  db.transaction(async (tx) => {
+    await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+      user,
+    ]);
+    await tx.exec("set local role authenticated");
+    const result = await tx.query<{ claimed: boolean }>(
+      "select attachment_archive_claim($1) as claimed",
+      [id],
+    );
+    return result.rows[0].claimed;
+  });
 const attachments: AttachmentOperations = {
   reconnect: async () => {
     throw new Error("測試用 Google 授權中斷");
@@ -190,7 +207,8 @@ const attachments: AttachmentOperations = {
     );
   },
   archive: async (id) => {
-    await attachmentCommand("archive_start", { id });
+    if (!(await claimAttachment(id))) return attachmentCommand("load");
+    await new Promise((resolve) => setTimeout(resolve, 150));
     if (new URLSearchParams(location.search).get("archiveFail") === "1") {
       await attachmentCommand("archive_failure", {
         id,
@@ -207,6 +225,7 @@ const attachments: AttachmentOperations = {
     await attachmentCommand("archive_source_deleted", { id });
     return attachmentCommand("load");
   },
+  folder: async () => "https://drive.google.com/drive/folders/fixture-folder",
   measure: async () => {
     await attachmentCommand("record_capacity", {
       service: "supabase_database",

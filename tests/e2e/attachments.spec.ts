@@ -51,6 +51,15 @@ test("Task and Activity attachments persist, archive and remain searchable", asy
   await expect(taskAttachment).toContainText(
     "PersonalWorkStation/Attachments/2026/09/fixture",
   );
+  await taskAttachment
+    .getByRole("button", { name: "取得所在資料夾連結" })
+    .click();
+  await expect(
+    taskAttachment.getByRole("link", { name: "開啟所在資料夾" }),
+  ).toHaveAttribute(
+    "href",
+    "https://drive.google.com/drive/folders/fixture-folder",
+  );
 
   await page.reload();
   await page.getByRole("button", { name: "任務看板", exact: true }).click();
@@ -71,6 +80,40 @@ test("Task and Activity attachments persist, archive and remain searchable", asy
       .getByRole("dialog", { name: "任務詳細資料" })
       .getByText(taskFilename, { exact: true }),
   ).toBeVisible();
+});
+
+test("rapid duplicate archive clicks keep one completed attachment", async ({
+  page,
+}) => {
+  await openBoard(page);
+  const title = `M6 double click ${test.info().project.name}`;
+  const filename = `double-click-${test.info().project.name}.txt`;
+  await page.getByLabel("下一件要做的事").fill(title);
+  await page.getByRole("button", { name: "新增任務", exact: true }).click();
+  await page.getByRole("button", { name: title, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "任務詳細資料" });
+  await dialog.getByLabel("新增附件", { exact: true }).setInputFiles({
+    name: filename,
+    mimeType: "text/plain",
+    buffer: Buffer.from("double click evidence"),
+  });
+  const item = dialog
+    .getByText(filename, { exact: true })
+    .locator("xpath=ancestor::li");
+  await item
+    .getByRole("button", { name: "封存至 Drive" })
+    .evaluate((button) => {
+      (button as HTMLButtonElement).click();
+      (button as HTMLButtonElement).click();
+    });
+  await expect(item.getByText("已封存", { exact: true })).toBeVisible();
+  await expect(item).not.toContainText("封存失敗");
+  await page.reload();
+  await page.getByRole("button", { name: "任務看板", exact: true }).click();
+  await page.getByRole("button", { name: title, exact: true }).click();
+  await expect(
+    page.getByText(filename, { exact: true }).locator("xpath=ancestor::li"),
+  ).toContainText("已封存");
 });
 
 test("Drive failure keeps the source and Retry archives the same attachment", async ({
@@ -99,7 +142,9 @@ test("Drive failure keeps the source and Retry archives the same attachment", as
   await expect(item.getByText("封存失敗", { exact: true })).toBeVisible();
   await expect(item.getByRole("button", { name: "開啟" })).toBeEnabled();
   await dialog.getByRole("button", { name: "重新連結 Google Drive" }).click();
-  await expect(dialog.getByRole("alert")).toContainText("測試用 Google 授權中斷");
+  await expect(dialog.getByRole("alert")).toContainText(
+    "測試用 Google 授權中斷",
+  );
 
   await openBoard(page);
   await page.getByRole("button", { name: title, exact: true }).click();
@@ -115,12 +160,18 @@ test("capacity snapshots and metadata backup persist", async ({ page }) => {
   await page.goto("/PersonalWorkStation/tests/fixture.html");
   await page.getByRole("button", { name: "設定", exact: true }).click();
   const maintenance = page.getByRole("region", { name: "儲存與維護" });
-  await maintenance.getByRole("button", { name: "重新連結 Google Drive" }).click();
-  await expect(maintenance.getByRole("alert")).toContainText("測試用 Google 授權中斷");
+  await maintenance
+    .getByRole("button", { name: "重新連結 Google Drive" })
+    .click();
+  await expect(maintenance.getByRole("alert")).toContainText(
+    "測試用 Google 授權中斷",
+  );
   await maintenance.getByRole("button", { name: "更新容量" }).click();
   await expect(maintenance.getByText("Supabase Database")).toBeVisible();
   await expect(maintenance.getByText("Supabase Storage")).toBeVisible();
-  await expect(maintenance.getByRole("heading", { name: "Google Drive" })).toBeVisible();
+  await expect(
+    maintenance.getByRole("heading", { name: "Google Drive" }),
+  ).toBeVisible();
   await expect(maintenance.getByRole("status")).toHaveText("容量已更新");
 
   await maintenance

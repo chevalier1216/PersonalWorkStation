@@ -118,6 +118,15 @@ export async function database() {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      new URL(
+        "../supabase/migrations/202609250001_archive_claim.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await db.query("insert into public.allowed_users values($1)", [alice]);
   async function run(
     action: string,
@@ -183,6 +192,19 @@ export async function database() {
       return result.rows[0].result;
     });
   }
+  async function claimAttachment(id: string, user = alice) {
+    return db.transaction(async (tx) => {
+      await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+        user,
+      ]);
+      await tx.exec("set local role authenticated");
+      const result = await tx.query<{ claimed: boolean }>(
+        "select public.attachment_archive_claim($1) as claimed",
+        [id],
+      );
+      return result.rows[0].claimed;
+    });
+  }
   async function searchArchive(query: string, user = alice) {
     return db.transaction(async (tx) => {
       await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
@@ -219,6 +241,7 @@ export async function database() {
     runSummary,
     search,
     runAttachment,
+    claimAttachment,
     searchArchive,
     runWorkflow,
   };

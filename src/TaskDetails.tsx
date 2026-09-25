@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   priorityLabels,
   rawDoingMinutes,
@@ -123,6 +123,8 @@ export function TaskDetails({
   const [attachmentState, setAttachmentState] = useState(emptyAttachmentState);
   const [attachmentBusy, setAttachmentBusy] = useState(Boolean(attachments));
   const [attachmentError, setAttachmentError] = useState("");
+  const archiveInFlight = useRef(new Set<string>());
+  const [folderLinks, setFolderLinks] = useState<Record<string, string>>({});
   const [relationType, setRelationType] =
     useState<RelationType>("prerequisite");
   const [relatedTask, setRelatedTask] = useState("");
@@ -864,12 +866,58 @@ export function TaskDetails({
               >
                 開啟
               </button>
+              {attachment.drive_file_id &&
+                (folderLinks[attachment.id] ? (
+                  <a
+                    href={folderLinks[attachment.id]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    開啟所在資料夾
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!attachments || attachmentBusy}
+                    onClick={async () => {
+                      if (!attachments) return;
+                      setAttachmentBusy(true);
+                      setAttachmentError("");
+                      try {
+                        const url = await attachments.folder(attachment.id);
+                        setFolderLinks((links) => ({
+                          ...links,
+                          [attachment.id]: url,
+                        }));
+                      } catch (reason) {
+                        setAttachmentError(
+                          reason instanceof Error
+                            ? reason.message
+                            : String(reason),
+                        );
+                      } finally {
+                        setAttachmentBusy(false);
+                      }
+                    }}
+                  >
+                    取得所在資料夾連結
+                  </button>
+                ))}
               {attachment.archive_status !== "archived" && (
                 <button
                   type="button"
-                  disabled={!attachments || attachmentBusy}
+                  disabled={
+                    !attachments ||
+                    attachmentBusy ||
+                    attachment.archive_status === "archiving"
+                  }
                   onClick={async () => {
-                    if (!attachments) return;
+                    if (
+                      !attachments ||
+                      archiveInFlight.current.has(attachment.id)
+                    )
+                      return;
+                    archiveInFlight.current.add(attachment.id);
                     setAttachmentBusy(true);
                     setAttachmentError("");
                     try {
@@ -884,6 +932,7 @@ export function TaskDetails({
                       );
                       setAttachmentState(await attachments.load());
                     } finally {
+                      archiveInFlight.current.delete(attachment.id);
                       setAttachmentBusy(false);
                     }
                   }}

@@ -123,13 +123,15 @@ Deno.serve(async (request) => {
   if (authError || !auth.user) return json(401, { error: "登入已失效" });
 
   let attachmentId = "";
+  let archiveStarted = false;
   try {
     const body = (await request.json()) as {
       action?: unknown;
       attachment_id?: unknown;
       google_access_token?: unknown;
     };
-    if (body.action !== "archive") return json(400, { error: "不支援的操作" });
+    if (body.action !== "archive" && body.action !== "folder")
+      return json(400, { error: "不支援的操作" });
     attachmentId =
       typeof body.attachment_id === "string" ? body.attachment_id : "";
     const googleToken =
@@ -148,12 +150,83 @@ Deno.serve(async (request) => {
       (item: Record<string, unknown>) => item.id === attachmentId,
     );
     if (!attachment) throw new Error("找不到附件");
+    if (body.action === "folder") {
+      if (!attachment.drive_file_id) throw new Error("附件尚未封存至 Drive");
+      const driveFile = await googleJson<{
+        parents?: string[];
+        trashed?: boolean;
+      }>(
+        googleToken,
+        `${DRIVE_API}/files/${encodeURIComponent(String(attachment.drive_file_id))}?fields=parents,trashed`,
+      );
+      if (driveFile.trashed || !driveFile.parents?.[0])
+        throw new Error("找不到附件所在的 Drive 資料夾");
+      return json(200, {
+        folder_url: `https://drive.google.com/drive/folders/${encodeURIComponent(driveFile.parents[0])}`,
+      });
+    }
+    if (
+      attachment.archive_status === "archived" ||
+      attachment.archive_status === "archiving"
+    )
+      return json(200, loaded.data);
+    if (
+      attachment.drive_file_id &&
+      attachment.drive_web_view_link &&
+      attachment.drive_path
+    ) {
+      const driveFile = await googleJson<{
+        name?: string;
+        size?: string;
+        trashed?: boolean;
+      }>(
+        googleToken,
+        `${DRIVE_API}/files/${encodeURIComponent(String(attachment.drive_file_id))}?fields=name,size,trashed`,
+      );
+      if (
+        driveFile.trashed ||
+        driveFile.name !== attachment.filename ||
+        Number(driveFile.size) !== Number(attachment.size_bytes)
+      )
+        throw new Error("Drive 附件驗證不一致，已保留目前紀錄");
+      const repaired = await client.rpc("attachment_command", {
+        action: "archive_success",
+        payload: {
+          id: attachmentId,
+          drive_file_id: attachment.drive_file_id,
+          drive_web_view_link: attachment.drive_web_view_link,
+          drive_path: attachment.drive_path,
+        },
+      });
+      if (repaired.error) throw repaired.error;
+      if (!attachment.source_deleted_at) {
+        const removed = await client.storage
+          .from("pws-attachments")
+          .remove([String(attachment.source_storage_path)]);
+        if (!removed.error) {
+          const deleted = await client.rpc("attachment_command", {
+            action: "archive_source_deleted",
+            payload: { id: attachmentId },
+          });
+          if (!deleted.error) return json(200, deleted.data);
+        }
+      }
+      return json(200, repaired.data);
+    }
     if (attachment.source_deleted_at) throw new Error("附件原件已移除");
-    const started = await client.rpc("attachment_command", {
-      action: "archive_start",
-      payload: { id: attachmentId },
+    const claimed = await client.rpc("attachment_archive_claim", {
+      target: attachmentId,
     });
-    if (started.error) throw started.error;
+    if (claimed.error) throw claimed.error;
+    if (!claimed.data) {
+      const latest = await client.rpc("attachment_command", {
+        action: "load",
+        payload: {},
+      });
+      if (latest.error) throw latest.error;
+      return json(200, latest.data);
+    }
+    archiveStarted = true;
 
     const downloaded = await client.storage
       .from("pws-attachments")
@@ -222,11 +295,24 @@ Deno.serve(async (request) => {
     return json(200, archived.data);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (attachmentId)
-      await client.rpc("attachment_command", {
-        action: "archive_failure",
-        payload: { id: attachmentId, message: message.slice(0, 2000) },
+    if (attachmentId && archiveStarted) {
+      const latest = await client.rpc("attachment_command", {
+        action: "load",
+        payload: {},
       });
+      const current = latest.data?.attachments?.find(
+        (item: Record<string, unknown>) => item.id === attachmentId,
+      );
+      if (
+        !latest.error &&
+        current?.archive_status === "archiving" &&
+        !current.drive_file_id
+      )
+        await client.rpc("attachment_command", {
+          action: "archive_failure",
+          payload: { id: attachmentId, message: message.slice(0, 2000) },
+        });
+    }
     return json(502, { error: message.slice(0, 2000) });
   }
 });

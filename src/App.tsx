@@ -11,6 +11,7 @@ import { summaryCommand } from "./summary";
 import { historySearch } from "./search";
 import {
   archiveAttachment,
+  attachmentFolderUrl,
   attachmentCommand,
   backupIsDue,
   capacityIsDue,
@@ -155,6 +156,7 @@ export function App() {
         upload: uploadAttachment,
         open: openAttachment,
         archive: (id) => archiveAttachment(id, session.provider_token ?? ""),
+        folder: (id) => attachmentFolderUrl(id, session.provider_token ?? ""),
         measure: () =>
           runDriveMaintenance("measure", session.provider_token ?? ""),
         backup: () =>
