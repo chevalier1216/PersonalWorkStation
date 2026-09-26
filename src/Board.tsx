@@ -30,6 +30,7 @@ import {
 import { TaskDetails } from "./TaskDetails";
 import { Today } from "./Today";
 import { NotificationBell } from "./NotificationBell";
+import { registerWorkspaceSiteTools, type SiteModelContext } from "./siteTools";
 import { AIChat, type AITaskDraft } from "./AIChat";
 import type { SummaryOperations } from "./summary";
 import type { SearchOperations } from "./search";
@@ -282,6 +283,8 @@ export function Board({
       last_error: "",
     },
   });
+  const latestData = useRef(data);
+  latestData.current = data;
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const [loaded, setLoaded] = useState(false);
@@ -329,7 +332,9 @@ export function Board({
     setError("");
     setNotice("");
     try {
-      setData(await execute(action, payload));
+      const next = await execute(action, payload);
+      latestData.current = next;
+      setData(next);
       setLoaded(true);
       setNotice(action === "load" ? "資料已更新" : "已儲存");
       return true;
@@ -344,6 +349,19 @@ export function Board({
       setBusy(false);
     }
   }
+  const siteRun = useRef(run);
+  siteRun.current = run;
+  useEffect(() => {
+    if (!loaded) return;
+    const context = (document as Document & { modelContext?: SiteModelContext })
+      .modelContext;
+    if (!context?.registerTool) return;
+    return registerWorkspaceSiteTools(
+      context,
+      () => latestData.current,
+      (action, payload) => siteRun.current(action, payload),
+    );
+  }, [loaded]);
   async function runCalendar(operation: () => Promise<Snapshot>) {
     if (lock.current) return false;
     lock.current = true;
@@ -351,7 +369,9 @@ export function Board({
     setError("");
     setNotice("");
     try {
-      setData(await operation());
+      const next = await operation();
+      latestData.current = next;
+      setData(next);
       setLoaded(true);
       setNotice("Calendar 狀態已更新");
       return true;

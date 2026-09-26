@@ -39,8 +39,9 @@ export function AIChat({
       <div className="chat-panel">
         <p>輸入需求後，可在下方確認建立 Task 與 Run。</p>
         <p className="subtle">
-          ChatGPT 對話操作尚未接通，入口暫停。尚未連接 executor 時，Run
-          會如實顯示 Waiting External。
+          網頁內 ChatGPT 對話入口暫停。桌面版 ChatGPT
+          一般「對話」可在內建瀏覽器開啟本工作臺；站點工具仍待實機驗證。尚未連接
+          executor 時，Run 會如實顯示 Waiting External。
         </p>
         <label>
           {compact ? "想問什麼" : "需求或問題"}
