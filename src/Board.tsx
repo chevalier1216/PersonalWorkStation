@@ -29,6 +29,7 @@ import {
 } from "./domain";
 import { TaskDetails } from "./TaskDetails";
 import { Today } from "./Today";
+import { NotificationBell } from "./NotificationBell";
 import { AIChat, type AITaskDraft } from "./AIChat";
 import type { SummaryOperations } from "./summary";
 import type { SearchOperations } from "./search";
@@ -532,6 +533,7 @@ export function Board({
           個人工作臺<span>PERSONAL WORKSTATION</span>
         </a>
         <div className="header-actions">
+          <NotificationBell items={data.notifications} run={run} />
           <span className="private">私人看板</span>
           {onSignOut && (
             <button
@@ -619,13 +621,11 @@ export function Board({
                 ? runCalendar(() => calendar.sync(data))
                 : Promise.resolve(false)
             }
-            createAiTask={createAiTask}
             workflowState={workflowState}
             openRun={(id) => {
               setSelectedRunId(id);
               setView("execution");
             }}
-            aiTaskDisabled={!loaded || busy || workflowBusy}
             createCalendarRun={createCalendarRun}
             exchangeRates={exchangeRates}
           />

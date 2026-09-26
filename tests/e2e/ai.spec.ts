@@ -21,14 +21,11 @@ test("AI entry pauses chat handoff while keeping Task and Run intake", async ({
   );
 });
 
-test("compatible web chat does not block the Task workspace", async ({
+test("Today hides AI Chat without blocking the Task workspace", async ({
   page,
 }) => {
   await page.goto("/PersonalWorkStation/tests/fixture.html");
-  const quickChat = page.getByRole("region", { name: "AI 快問" });
-  await expect(
-    quickChat.getByText("工作臺內建立 Task 與可追蹤 Run"),
-  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "AI 快問" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "任務看板", exact: true }).click();
   const title = `M4 browser isolation ${test.info().project.name}`;

@@ -3,12 +3,10 @@ import {
   priorityLabels,
   type CalendarDay,
   type GoogleCalendarEvent,
-  type Notification,
   type Snapshot,
   type Task,
 } from "./domain";
 import type { CalendarOperations } from "./Board";
-import { AIChat, type AITaskDraft } from "./AIChat";
 import { ExecutionSummary } from "./ExecutionCenter";
 import type { WorkflowState } from "./workflow";
 import {
@@ -24,18 +22,14 @@ type Run = (
 type ModuleId =
   | "tasks"
   | "calendar"
-  | "ai_chat"
   | "ai_execution"
-  | "notifications"
   | "holidays"
   | "exchange_rates";
 
 const modules: Array<{ id: ModuleId; label: string }> = [
   { id: "tasks", label: "任務" },
   { id: "calendar", label: "Google Calendar" },
-  { id: "ai_chat", label: "AI Chat" },
   { id: "ai_execution", label: "AI 執行狀態" },
-  { id: "notifications", label: "通知" },
   { id: "holidays", label: "假日提醒" },
   { id: "exchange_rates", label: "玉山外幣匯率" },
 ];
@@ -196,52 +190,6 @@ function TaskRows({
   );
 }
 
-function Notifications({ items, run }: { items: Notification[]; run: Run }) {
-  const unread = items.filter((item) => !item.read_at).length;
-  return (
-    <section className="today-module" aria-label="通知">
-      <div className="module-heading">
-        <div>
-          <p className="eyebrow">NOTIFICATIONS</p>
-          <h2>
-            通知 <span>{unread} 未讀</span>
-          </h2>
-        </div>
-        {unread > 0 && (
-          <button onClick={() => void run("mark_all_notifications_read")}>
-            全部標為已讀
-          </button>
-        )}
-      </div>
-      {items.length ? (
-        <ol className="notification-list">
-          {items.map((item) => (
-            <li key={item.id} className={item.read_at ? "read" : "unread"}>
-              <div>
-                <strong>{item.title}</strong>
-                {item.body && <p>{item.body}</p>}
-                <time>{new Date(item.created_at).toLocaleString("zh-TW")}</time>
-              </div>
-              {!item.read_at && (
-                <button
-                  aria-label={`標為已讀 ${item.title}`}
-                  onClick={() =>
-                    void run("mark_notification_read", { id: item.id })
-                  }
-                >
-                  已讀
-                </button>
-              )}
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p className="subtle">目前沒有通知</p>
-      )}
-    </section>
-  );
-}
-
 export function CalendarAgenda({
   dates,
   data,
@@ -359,10 +307,8 @@ export function Today({
   run,
   calendar,
   syncCalendar,
-  createAiTask,
   workflowState,
   openRun,
-  aiTaskDisabled,
   createCalendarRun,
   exchangeRates,
 }: {
@@ -372,10 +318,8 @@ export function Today({
   run: Run;
   calendar?: CalendarOperations;
   syncCalendar: () => Promise<boolean>;
-  createAiTask: (draft: AITaskDraft) => Promise<string | false>;
   workflowState: WorkflowState;
   openRun: (id: string) => void;
-  aiTaskDisabled: boolean;
   createCalendarRun: (event: GoogleCalendarEvent) => Promise<boolean>;
   exchangeRates?: ExchangeRateOperations;
 }) {
@@ -384,6 +328,7 @@ export function Today({
   const [rateState, setRateState] = useState(emptyExchangeRateState);
   const [rateBusy, setRateBusy] = useState(false);
   const [draggingModule, setDraggingModule] = useState<ModuleId | null>(null);
+  const [holidaysExpanded, setHolidaysExpanded] = useState(false);
   useEffect(() => {
     if (!exchangeRates) return;
     let cancelled = false;
@@ -422,15 +367,17 @@ export function Today({
       taskDate(task, "due") === today || taskDate(task, "start") === today,
   );
   const unscheduled = incomplete.filter((task) => !task.due_at);
-  const holidayReminders = data.calendar_days.filter((item) => {
-    if (item.region !== "TW" || item.day_type !== "holiday") return false;
-    const diff = Math.round(
-      (new Date(`${item.day}T00:00:00`).getTime() -
-        new Date(`${today}T00:00:00`).getTime()) /
-        86400000,
-    );
-    return diff === 14 || diff === 3 || diff === 1;
-  });
+  const upcomingHolidays = data.calendar_days
+    .filter(
+      (item) =>
+        item.region === "TW" &&
+        item.day_type === "holiday" &&
+        item.day >= today,
+    )
+    .sort((a, b) => a.day.localeCompare(b.day));
+  const displayedHolidays = holidaysExpanded
+    ? upcomingHolidays
+    : upcomingHolidays.slice(0, 2);
   const configured = data.preferences.module_order.filter(
     (id): id is ModuleId => modules.some((module) => module.id === id),
   );
@@ -588,18 +535,8 @@ export function Today({
         </section>
       );
     }
-    if (id === "notifications")
-      return <Notifications items={data.notifications} run={run} />;
     if (id === "ai_execution")
       return <ExecutionSummary state={workflowState} openRun={openRun} />;
-    if (id === "ai_chat")
-      return (
-        <AIChat
-          compact
-          createTask={createAiTask}
-          taskCreationDisabled={aiTaskDisabled}
-        />
-      );
     if (id === "exchange_rates")
       return (
         <ExchangeRates
@@ -630,9 +567,9 @@ export function Today({
             <h2>台灣假日提醒</h2>
           </div>
         </div>
-        {holidayReminders.length ? (
+        {displayedHolidays.length ? (
           <ul className="holiday-list">
-            {holidayReminders.map((item) => (
+            {displayedHolidays.map((item) => (
               <li key={item.day}>
                 <strong>{item.name}</strong>
                 <span>{item.day}</span>
@@ -641,6 +578,18 @@ export function Today({
           </ul>
         ) : (
           <p className="subtle">未來 14 天沒有需要提醒的台灣假日</p>
+        )}
+        {upcomingHolidays.length > 2 && (
+          <button
+            className="holiday-expand"
+            type="button"
+            aria-expanded={holidaysExpanded}
+            onClick={() => setHolidaysExpanded((value) => !value)}
+          >
+            {holidaysExpanded
+              ? "收合"
+              : `展開更多（${upcomingHolidays.length - 2}）`}
+          </button>
         )}
       </section>
     );
@@ -700,11 +649,29 @@ export function Today({
         </section>
       )}
       <div className="today-modules">
-        {order
-          .filter((id) => !hidden.includes(id))
-          .map((id) => (
-            <div key={id}>{renderModule(id)}</div>
-          ))}
+        <div className="today-primary">
+          {order
+            .filter(
+              (id) =>
+                !hidden.includes(id) &&
+                id !== "holidays" &&
+                id !== "exchange_rates",
+            )
+            .map((id) => (
+              <div key={id}>{renderModule(id)}</div>
+            ))}
+        </div>
+        <div className="today-aside">
+          {order
+            .filter(
+              (id) =>
+                !hidden.includes(id) &&
+                (id === "holidays" || id === "exchange_rates"),
+            )
+            .map((id) => (
+              <div key={id}>{renderModule(id)}</div>
+            ))}
+        </div>
       </div>
     </>
   );

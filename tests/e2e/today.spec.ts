@@ -30,7 +30,28 @@ test("Today is the home page and recurring completion creates a task and notific
       }),
   ).toBeVisible();
   await page.getByRole("button", { name: "今日", exact: true }).click();
-  await expect(page.getByText("已建立下一周期任務")).toBeVisible();
+  await expect(page.getByRole("region", { name: "AI 快問" })).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "通知", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: /通知，\d+ 則未讀/ }).click();
+  const notifications = page.getByRole("region", { name: "通知中心" });
+  await expect(notifications.getByText("已建立下一周期任務")).toBeVisible();
+  await notifications
+    .getByRole("button", { name: "標為已讀 已建立下一周期任務" })
+    .click();
+  await expect(
+    notifications
+      .getByRole("tabpanel", { name: "未讀通知" })
+      .getByText("已建立下一周期任務"),
+  ).toHaveCount(0);
+  await notifications.getByRole("tab", { name: /已讀/ }).click();
+  await expect(
+    notifications
+      .getByRole("tabpanel", { name: "已讀通知" })
+      .getByText("已建立下一周期任務"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /通知，\d+ 則未讀/ }).click();
   await expect(
     page
       .getByRole("region", { name: "未排程", exact: true })
@@ -101,5 +122,29 @@ test("Today shows E.SUN spot and cash rates for the approved currencies", async 
   await expect(rates.getByRole("link", { name: "官方來源" })).toHaveAttribute(
     "href",
     /esunbank\.com/,
+  );
+});
+
+test("expanding Taiwan holidays pushes exchange rates down without overlap", async ({
+  page,
+}) => {
+  await page.goto("/PersonalWorkStation/tests/fixture.html");
+  const holiday = page.getByRole("region", { name: "假日提醒" });
+  const rates = page.getByRole("region", { name: "玉山銀行外幣匯率" });
+  const expand = holiday.getByRole("button", { name: /展開更多/ });
+  await expect(expand).toBeVisible({ timeout: 30000 });
+  const before = await rates.boundingBox();
+  // Mobile emulation's layout viewport can exceed its visual viewport; dispatch
+  // the control action here and assert the resulting real layout coordinates.
+  if (test.info().project.name === "mobile")
+    await expand.dispatchEvent("click");
+  else await expand.click();
+  await expect(holiday.getByRole("button", { name: "收合" })).toBeVisible();
+  const holidayBox = await holiday.boundingBox();
+  const ratesBox = await rates.boundingBox();
+  expect(before && holidayBox && ratesBox).toBeTruthy();
+  expect(ratesBox!.y).toBeGreaterThan(before!.y);
+  expect(ratesBox!.y).toBeGreaterThanOrEqual(
+    holidayBox!.y + holidayBox!.height,
   );
 });
