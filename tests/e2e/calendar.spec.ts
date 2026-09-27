@@ -85,7 +85,13 @@ test("Calendar API failure keeps the Task, notifies and offers Retry", async ({
   ).toBeVisible();
   await details.getByLabel("關閉", { exact: true }).click();
   await page.getByRole("button", { name: "今日", exact: true }).click();
-  await expect(page.getByText("Task 行事曆同步失敗")).toBeVisible();
+  await page.getByRole("button", { name: /通知，\d+ 則未讀/ }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "通知中心" })
+      .getByText("Task 行事曆同步失敗"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /通知，\d+ 則未讀/ }).click();
   await page.getByRole("button", { name: "任務看板", exact: true }).click();
   await expect(
     page.getByRole("button", { name: title, exact: true }),
