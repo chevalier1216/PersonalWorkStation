@@ -413,6 +413,10 @@ h1 {
   padding: 7px 0;
   border-bottom: 1px solid #a6b5cd16;
 }
+.today-module .agenda-day li {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
 .agenda-day time {
   color: #9facbe;
   font-size: 0.67rem;
