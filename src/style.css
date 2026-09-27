@@ -392,6 +392,38 @@ h1 {
   width: 100%;
   max-width: 100%;
 }
+.calendar-agenda-wrapper {
+  min-width: 0;
+}
+.calendar-expand-button {
+  display: block;
+  margin: 0 0 12px auto;
+}
+.calendar-months {
+  display: grid;
+  gap: 18px;
+}
+.calendar-months > section > h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+.calendar-months > section > h3 span {
+  color: #aebfd8;
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+.calendar-agenda.month-agenda {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  overflow: visible;
+}
+.month-agenda .agenda-day li {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.month-agenda .calendar-event-actions {
+  align-items: flex-start;
+  flex-direction: column;
+}
 .agenda-day {
   border-top: 1px solid #a6b5cd20;
   padding-top: 10px;
@@ -964,6 +996,9 @@ dialog {
 }
 .calendar-view .calendar-agenda {
   margin-top: 24px;
+}
+.calendar-view .month-agenda {
+  margin-top: 0;
 }
 .summary-heading {
   display: flex;

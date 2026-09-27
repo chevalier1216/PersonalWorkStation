@@ -137,6 +137,44 @@ export function nextChinaWorkdays(
   return result;
 }
 
+export function calendarMonthDates(from: Date, count = 2) {
+  const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  return Array.from({ length: count }, (_, offset) => {
+    const first = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + offset + 1, 1);
+    const dates: Date[] = [];
+    const cursor = offset === 0 ? new Date(today) : new Date(first);
+    while (cursor < end) {
+      dates.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return {
+      key: `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, "0")}`,
+      title: `${first.getFullYear()} 年 ${first.getMonth() + 1} 月`,
+      dates,
+    };
+  });
+}
+
+function calendarItemCount(dates: Date[], data: Snapshot, tasks: Task[]) {
+  const days = new Set(dates.map(dateKey));
+  const taskCount = tasks.filter(
+    (task) =>
+      (taskDate(task, "due") && days.has(taskDate(task, "due")!)) ||
+      (taskDate(task, "start") && days.has(taskDate(task, "start")!)),
+  ).length;
+  const eventCount = data.google_events.filter((event) =>
+    days.has(
+      event.all_day
+        ? (event.start_date ?? "")
+        : event.start_at
+          ? dateKey(new Date(event.start_at))
+          : "",
+    ),
+  ).length;
+  return taskCount + eventCount;
+}
+
 function taskSort(a: Task, b: Task) {
   return (
     priorityRank[a.priority] - priorityRank[b.priority] ||
@@ -196,15 +234,17 @@ export function CalendarAgenda({
   tasks,
   openTask,
   createCalendarRun,
+  monthView = false,
 }: {
   dates: Date[];
   data: Snapshot;
   tasks: Task[];
   openTask: (id: string) => void;
   createCalendarRun?: (event: GoogleCalendarEvent) => Promise<boolean>;
+  monthView?: boolean;
 }) {
   return (
-    <div className="calendar-agenda">
+    <div className={`calendar-agenda${monthView ? " month-agenda" : ""}`}>
       {dates.map((date) => {
         const day = dateKey(date);
         const entries = [
@@ -296,6 +336,68 @@ export function CalendarAgenda({
           </section>
         );
       })}
+    </div>
+  );
+}
+
+export function ExpandableCalendarAgenda({
+  summaryDates,
+  data,
+  tasks,
+  openTask,
+  createCalendarRun,
+}: {
+  summaryDates: Date[];
+  data: Snapshot;
+  tasks: Task[];
+  openTask: (id: string) => void;
+  createCalendarRun?: (event: GoogleCalendarEvent) => Promise<boolean>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const months = calendarMonthDates(summaryDates[0] ?? new Date());
+  return (
+    <div className="calendar-agenda-wrapper">
+      <button
+        type="button"
+        className="calendar-expand-button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((value) => !value)}
+      >
+        {expanded ? "收合月份行程" : "展開月份行程"}
+      </button>
+      {expanded ? (
+        <div className="calendar-months">
+          {months.map((month) => (
+            <section key={month.key} aria-label={`${month.title}行程`}>
+              <h3>
+                {month.title}{" "}
+                <span>
+                  {calendarItemCount(month.dates, data, tasks)} 筆項目
+                </span>
+              </h3>
+              <CalendarAgenda
+                dates={month.dates}
+                data={data}
+                tasks={tasks}
+                openTask={openTask}
+                createCalendarRun={createCalendarRun}
+                monthView
+              />
+            </section>
+          ))}
+          <p className="subtle">
+            Google 行程依上次同步結果顯示；按「同步」更新月份資料。
+          </p>
+        </div>
+      ) : (
+        <CalendarAgenda
+          dates={summaryDates}
+          data={data}
+          tasks={tasks}
+          openTask={openTask}
+          createCalendarRun={createCalendarRun}
+        />
+      )}
     </div>
   );
 }
@@ -525,8 +627,8 @@ export function Today({
               Task 與最後成功同步的事件仍保留。請重新連結或重試同步。
             </p>
           )}
-          <CalendarAgenda
-            dates={[now, ...futureDays]}
+          <ExpandableCalendarAgenda
+            summaryDates={[now, ...futureDays]}
             data={data}
             tasks={incomplete}
             openTask={openTask}

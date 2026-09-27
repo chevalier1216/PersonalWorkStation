@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { GoogleCalendarEvent, Snapshot } from "./domain";
 import type { CalendarOperations } from "./Board";
-import { CalendarAgenda } from "./Today";
+import { ExpandableCalendarAgenda } from "./Today";
 
 type Run = (
   action: string,
@@ -119,8 +119,8 @@ export function CalendarView({
           Task 與最後成功同步的事件仍保留。請重新連結或重試同步。
         </p>
       )}
-      <CalendarAgenda
-        dates={dates}
+      <ExpandableCalendarAgenda
+        summaryDates={dates}
         data={data}
         tasks={incomplete}
         openTask={openTask}

@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { nextChinaWorkdays } from "../src/Today";
+import { calendarMonthDates, nextChinaWorkdays } from "../src/Today";
 import type { CalendarDay } from "../src/domain";
 
-function day(
-  value: string,
-  day_type: CalendarDay["day_type"],
-): CalendarDay {
+function day(value: string, day_type: CalendarDay["day_type"]): CalendarDay {
   return {
     region: "CN",
     day: value,
@@ -40,5 +37,23 @@ describe("China workday calendar", () => {
       "2026-09-24",
       "2026-09-28",
     ]);
+  });
+});
+
+describe("expanded Calendar months", () => {
+  it("includes every date through the end of the following month", () => {
+    const months = calendarMonthDates(new Date(2026, 8, 28));
+    const dates = months.flatMap((month) =>
+      month.dates.map((date) => date.toLocaleDateString("sv-SE")),
+    );
+    expect(months.map((month) => month.key)).toEqual(["2026-09", "2026-10"]);
+    expect(months.map((month) => month.dates.length)).toEqual([3, 31]);
+    expect(dates[0]).toBe("2026-09-28");
+    expect(dates.at(-1)).toBe("2026-10-31");
+    for (let index = 1; index < dates.length; index++) {
+      const previous = months.flatMap((month) => month.dates)[index - 1];
+      const current = months.flatMap((month) => month.dates)[index];
+      expect(current.getTime() - previous.getTime()).toBe(24 * 60 * 60 * 1000);
+    }
   });
 });

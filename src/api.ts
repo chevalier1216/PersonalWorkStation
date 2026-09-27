@@ -133,6 +133,45 @@ export function taskEventBody(task: Task) {
   throw new Error("請先為 Task 設定開始日期或截止時間。");
 }
 
+export function calendarSyncEnd(start: Date) {
+  return new Date(start.getFullYear(), start.getMonth() + 2, 1);
+}
+
+export async function listGoogleEvents(
+  token: string,
+  calendarId: string,
+  start: Date,
+  end: Date,
+) {
+  const query = new URLSearchParams({
+    singleEvents: "true",
+    orderBy: "startTime",
+    timeMin: start.toISOString(),
+    timeMax: end.toISOString(),
+    maxResults: "250",
+  });
+  const events: GoogleEvent[] = [];
+  let pageToken: string | undefined;
+  let pages = 0;
+  do {
+    if (++pages > 40)
+      throw new Error("Google Calendar 行程過多，單次同步超過 40 頁上限。");
+    if (pageToken) query.set("pageToken", pageToken);
+    const response = await googleJson<{
+      items?: GoogleEvent[];
+      nextPageToken?: string;
+    }>(
+      token,
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${query}`,
+    );
+    events.push(...(response.items ?? []));
+    pageToken = response.nextPageToken;
+  } while (pageToken);
+  return events
+    .filter((event) => event.status !== "cancelled")
+    .map((event) => normalizeGoogleEvent(calendarId, event));
+}
+
 export async function syncGoogleCalendar(
   token: string,
   current: Snapshot,
@@ -157,25 +196,11 @@ export async function syncGoogleCalendar(
     const selected = calendars.filter((item) => item.selected);
     const start = new Date();
     start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 21);
+    const end = calendarSyncEnd(start);
     const eventGroups = await Promise.all(
-      selected.map(async (calendar) => {
-        const query = new URLSearchParams({
-          singleEvents: "true",
-          orderBy: "startTime",
-          timeMin: start.toISOString(),
-          timeMax: end.toISOString(),
-          maxResults: "250",
-        });
-        const response = await googleJson<{ items?: GoogleEvent[] }>(
-          token,
-          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendar.id)}/events?${query}`,
-        );
-        return (response.items ?? [])
-          .filter((event) => event.status !== "cancelled")
-          .map((event) => normalizeGoogleEvent(calendar.id, event));
-      }),
+      selected.map((calendar) =>
+        listGoogleEvents(token, calendar.id, start, end),
+      ),
     );
     return command("calendar_sync_success", {
       calendars,

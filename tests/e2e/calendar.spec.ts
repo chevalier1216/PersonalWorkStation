@@ -1,5 +1,53 @@
 import { test, expect } from "@playwright/test";
 
+test("expanded Calendar shows every day and monthly item counts", async ({
+  page,
+}) => {
+  await page.goto("/PersonalWorkStation/tests/fixture.html");
+  const calendar = page.getByRole("region", { name: "Google Calendar" });
+  await expect(calendar).toBeVisible({ timeout: 30000 });
+  await calendar.getByRole("button", { name: "同步", exact: true }).click();
+  const today = new Date();
+  const tomorrow = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() + 1,
+  );
+  const lastNextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+  const key = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const finalDay = calendar.getByRole("region", {
+    name: `行程 ${key(lastNextMonth)}`,
+  });
+  await expect(finalDay).toHaveCount(0);
+  await calendar.getByRole("button", { name: "展開月份行程" }).click();
+  await expect(
+    calendar.getByRole("region", { name: `行程 ${key(tomorrow)}` }),
+  ).toBeVisible();
+  await expect(finalDay).toBeVisible();
+  await expect(
+    calendar.getByRole("region", {
+      name: `${today.getFullYear()} 年 ${today.getMonth() + 1} 月行程`,
+    }),
+  ).toContainText("1 筆項目");
+  await expect(
+    calendar.getByRole("region", {
+      name: `${lastNextMonth.getFullYear()} 年 ${lastNextMonth.getMonth() + 1} 月行程`,
+    }),
+  ).toContainText("0 筆項目");
+  await calendar.getByRole("button", { name: "收合月份行程" }).click();
+  await expect(finalDay).toHaveCount(0);
+  await page.getByRole("button", { name: "行事曆", exact: true }).click();
+  const calendarPage = page.getByRole("region", {
+    name: "行事曆",
+    exact: true,
+  });
+  await calendarPage.getByRole("button", { name: "展開月份行程" }).click();
+  await expect(
+    calendarPage.getByRole("region", { name: `行程 ${key(lastNextMonth)}` }),
+  ).toBeVisible();
+});
+
 test("Calendar sync, selection and Task event relation survive refresh", async ({
   page,
 }) => {
