@@ -5,7 +5,8 @@ const source =
   "https://www.esunbank.com/zh-tw/personal/deposit/rate/forex/foreign-exchange-rates";
 const cors = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "authorization, apikey, content-type",
+  "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
+  "access-control-allow-methods": "POST, OPTIONS",
 };
 
 Deno.serve(async (request) => {
