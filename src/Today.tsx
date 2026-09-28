@@ -143,7 +143,7 @@ export function calendarMonthDates(from: Date, count = 2) {
     const first = new Date(today.getFullYear(), today.getMonth() + offset, 1);
     const end = new Date(today.getFullYear(), today.getMonth() + offset + 1, 1);
     const dates: Date[] = [];
-    const cursor = offset === 0 ? new Date(today) : new Date(first);
+    const cursor = new Date(first);
     while (cursor < end) {
       dates.push(new Date(cursor));
       cursor.setDate(cursor.getDate() + 1);
@@ -173,6 +173,10 @@ function calendarItemCount(dates: Date[], data: Snapshot, tasks: Task[]) {
     ),
   ).length;
   return taskCount + eventCount;
+}
+
+function calendarEventKey(event: GoogleCalendarEvent) {
+  return `${event.calendar_id}:${event.event_id}`;
 }
 
 function taskSort(a: Task, b: Task) {
@@ -233,18 +237,34 @@ export function CalendarAgenda({
   data,
   tasks,
   openTask,
-  createCalendarRun,
+  selectingRuns = false,
+  selectedRunIds = [],
+  toggleRunSelection,
   monthView = false,
 }: {
   dates: Date[];
   data: Snapshot;
   tasks: Task[];
   openTask: (id: string) => void;
-  createCalendarRun?: (event: GoogleCalendarEvent) => Promise<boolean>;
+  selectingRuns?: boolean;
+  selectedRunIds?: string[];
+  toggleRunSelection?: (event: GoogleCalendarEvent) => void;
   monthView?: boolean;
 }) {
   return (
     <div className={`calendar-agenda${monthView ? " month-agenda" : ""}`}>
+      {monthView &&
+        ["週日", "週一", "週二", "週三", "週四", "週五", "週六"].map(
+          (weekday) => (
+            <div className="calendar-weekday" key={weekday} aria-hidden="true">
+              {weekday}
+            </div>
+          ),
+        )}
+      {monthView &&
+        Array.from({ length: dates[0]?.getDay() ?? 0 }, (_, index) => (
+          <div className="calendar-month-pad" key={`pad-${index}`} aria-hidden="true" />
+        ))}
       {dates.map((date) => {
         const day = dateKey(date);
         const entries = [
@@ -271,59 +291,69 @@ export function CalendarAgenda({
             )
             .map((event) => ({
               id: `event:${event.calendar_id}:${event.event_id}`,
-              at: event.start_at ?? "9999",
+              at: event.all_day ? "" : (event.start_at ?? "9999"),
               title: event.title,
               kind: "event" as const,
               event,
             })),
         ].sort((a, b) => a.at.localeCompare(b.at));
         return (
-          <section className="agenda-day" key={day} aria-label={`行程 ${day}`}>
+          <section
+            className={`agenda-day${entries.length ? " has-items" : ""}`}
+            key={day}
+            aria-label={`行程 ${day}`}
+          >
             <h3>
-              {date.toLocaleDateString("zh-TW", {
-                month: "numeric",
-                day: "numeric",
-                weekday: "short",
-              })}
+              {monthView
+                ? date.getDate()
+                : date.toLocaleDateString("zh-TW", {
+                    month: "numeric",
+                    day: "numeric",
+                    weekday: "short",
+                  })}
             </h3>
             {entries.length ? (
               <ol>
                 {entries.map((entry) => (
-                  <li key={entry.id}>
+                  <li key={entry.id} className={`agenda-${entry.kind}`}>
                     <time>
-                      {entry.at === "9999"
-                        ? "無時間"
-                        : new Date(entry.at).toLocaleTimeString("zh-TW", {
+                      {entry.at === ""
+                        ? "全天"
+                        : entry.at === "9999"
+                          ? "無時間"
+                          : new Date(entry.at).toLocaleTimeString("zh-TW", {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
                     </time>
                     {entry.kind === "task" ? (
                       <button onClick={() => openTask(entry.task.id)}>
-                        <span>Task</span> {entry.title}
+                        {entry.title}
                       </button>
                     ) : (
                       <div className="calendar-event-actions">
+                        {selectingRuns && toggleRunSelection && (
+                          <input
+                            type="checkbox"
+                            aria-label={`選取行程 ${entry.title} ${day}`}
+                            checked={selectedRunIds.includes(
+                              calendarEventKey(entry.event),
+                            )}
+                            onChange={() => toggleRunSelection(entry.event)}
+                          />
+                        )}
                         {entry.event.html_link ? (
                           <a
                             href={entry.event.html_link}
                             target="_blank"
                             rel="noreferrer"
                           >
-                            <span>Calendar</span> {entry.title}
+                            {entry.title}
                           </a>
                         ) : (
                           <p>
-                            <span>Calendar</span> {entry.title}
+                            {entry.title}
                           </p>
-                        )}
-                        {createCalendarRun && (
-                          <button
-                            type="button"
-                            onClick={() => void createCalendarRun(entry.event)}
-                          >
-                            建立 Run
-                          </button>
                         )}
                       </div>
                     )}
@@ -331,7 +361,7 @@ export function CalendarAgenda({
                 ))}
               </ol>
             ) : (
-              <p className="subtle">沒有行程</p>
+              !monthView && <p className="subtle">沒有行程</p>
             )}
           </section>
         );
@@ -354,17 +384,86 @@ export function ExpandableCalendarAgenda({
   createCalendarRun?: (event: GoogleCalendarEvent) => Promise<boolean>;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [selectingRuns, setSelectingRuns] = useState(false);
+  const [selectedRunIds, setSelectedRunIds] = useState<string[]>([]);
+  const [creatingRuns, setCreatingRuns] = useState(false);
+  const [runError, setRunError] = useState("");
   const months = calendarMonthDates(summaryDates[0] ?? new Date());
+  const selectedEvents = data.google_events.filter((event) =>
+    selectedRunIds.includes(calendarEventKey(event)),
+  );
+  function toggleRunSelection(event: GoogleCalendarEvent) {
+    const key = calendarEventKey(event);
+    setSelectedRunIds((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key],
+    );
+  }
+  async function createSelectedRuns() {
+    if (!createCalendarRun || !selectedEvents.length || creatingRuns) return;
+    setCreatingRuns(true);
+    setRunError("");
+    try {
+      for (const event of selectedEvents) {
+        if (!(await createCalendarRun(event))) {
+          setRunError("部分 Run 建立失敗；未完成的行程仍保持勾選。");
+          return;
+        }
+        setSelectedRunIds((current) =>
+          current.filter((key) => key !== calendarEventKey(event)),
+        );
+      }
+      setSelectingRuns(false);
+    } catch (reason) {
+      setRunError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setCreatingRuns(false);
+    }
+  }
   return (
     <div className="calendar-agenda-wrapper">
-      <button
-        type="button"
-        className="calendar-expand-button"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((value) => !value)}
-      >
-        {expanded ? "收合月份行程" : "展開月份行程"}
-      </button>
+      <div className="calendar-toolbar">
+        {createCalendarRun &&
+          (selectingRuns ? (
+            <div className="calendar-run-toolbar">
+              <span>勾選要建立 Run 的行程</span>
+              <button
+                type="button"
+                disabled={!selectedEvents.length || creatingRuns}
+                onClick={() => void createSelectedRuns()}
+              >
+                {creatingRuns
+                  ? "建立中…"
+                  : `建立 ${selectedEvents.length} 個 Run`}
+              </button>
+              <button
+                type="button"
+                disabled={creatingRuns}
+                onClick={() => {
+                  setSelectingRuns(false);
+                  setSelectedRunIds([]);
+                  setRunError("");
+                }}
+              >
+                取消
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setSelectingRuns(true)}>
+              選取行程建立 Run
+            </button>
+          ))}
+        <button
+          type="button"
+          className="calendar-expand-button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "收合月份行程" : "展開月份行程"}
+        </button>
+      </div>
+      {runError && <p className="error" role="alert">{runError}</p>}
       {expanded ? (
         <div className="calendar-months">
           {months.map((month) => (
@@ -380,7 +479,9 @@ export function ExpandableCalendarAgenda({
                 data={data}
                 tasks={tasks}
                 openTask={openTask}
-                createCalendarRun={createCalendarRun}
+                selectingRuns={selectingRuns}
+                selectedRunIds={selectedRunIds}
+                toggleRunSelection={toggleRunSelection}
                 monthView
               />
             </section>
@@ -395,7 +496,9 @@ export function ExpandableCalendarAgenda({
           data={data}
           tasks={tasks}
           openTask={openTask}
-          createCalendarRun={createCalendarRun}
+          selectingRuns={selectingRuns}
+          selectedRunIds={selectedRunIds}
+          toggleRunSelection={toggleRunSelection}
         />
       )}
     </div>
