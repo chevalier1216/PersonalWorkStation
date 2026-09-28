@@ -30,6 +30,22 @@ test("expanded Calendar shows every day and monthly item counts", async ({
       name: `${today.getFullYear()} 年 ${today.getMonth() + 1} 月行程`,
     }),
   ).toContainText("1 筆項目");
+  const currentMonth = calendar.getByRole("region", {
+    name: `${today.getFullYear()} 年 ${today.getMonth() + 1} 月行程`,
+  });
+  const firstCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  await expect(
+    currentMonth.getByRole("region", {
+      name: `行程 ${key(firstCurrentMonth)}`,
+    }),
+  ).toBeVisible();
+  await expect(currentMonth.locator(".calendar-weekday")).toHaveText([
+    "週日", "週一", "週二", "週三", "週四", "週五", "週六",
+  ]);
+  await expect(currentMonth.locator(".calendar-month-pad")).toHaveCount(
+    firstCurrentMonth.getDay(),
+  );
+  await expect(currentMonth.getByText("Calendar", { exact: true })).toHaveCount(0);
   await expect(
     calendar.getByRole("region", {
       name: `${lastNextMonth.getFullYear()} 年 ${lastNextMonth.getMonth() + 1} 月行程`,
@@ -56,11 +72,11 @@ test("Calendar sync, selection and Task event relation survive refresh", async (
   await expect(calendar).toBeVisible({ timeout: 30000 });
   await calendar.getByRole("button", { name: "同步", exact: true }).click();
   await expect(calendar.getByText("M3 行事曆事件")).toBeVisible();
+  await calendar.getByRole("button", { name: "選取行程建立 Run" }).click();
   await calendar
-    .getByText("M3 行事曆事件")
-    .locator("xpath=ancestor::li")
-    .getByRole("button", { name: "建立 Run" })
-    .click();
+    .getByRole("checkbox", { name: /選取行程 M3 行事曆事件/ })
+    .check();
+  await calendar.getByRole("button", { name: "建立 1 個 Run" }).click();
   const execution = page.getByRole("region", { name: "AI 執行中心" });
   const calendarRun = execution.getByRole("button", {
     name: /M3 行事曆事件 · Calendar trigger/,
