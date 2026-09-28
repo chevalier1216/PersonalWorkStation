@@ -1,3 +1,15 @@
+## Mandatory cross-project PR gate (2026-09-29)
+
+本 repo **必須遵守** [跨專案 Git 交付政策](https://github.com/chevalier1216/KarpathyWiki_personal/blob/main/CROSS_PROJECT_GIT_POLICY.md)。此規範優先於本檔及其他舊文件中任何直接提交預設分支的做法；保留原有產品規格、必要測試、授權與成本限制。Work / Codex / 其他 Agent 不需使用者每次重複提醒：
+
+- 從最新受保護整合分支建立 **每項獨立需求一個短期 branch**；禁止 direct commit/push 至整合分支，包括 Wiki、文件與 hotfix；多 Agent 使用獨立 branch/工作樹。
+- 在工作分支驗證、commit、push，建立 PR；審核 diff、範圍、敏感資訊、必要 CI、衝突與 migration/部署影響。未過不得 merge；新費用、破壞性及授權操作仍需明確批准。
+- 預設 Squash Merge 並留存 PR、head SHA、merge SHA、CI/部署讀回；需要回檔則從 revert branch 建 PR，不 force push/reset 整合分支。只開 PR 或只 push 不可說已完成整合。
+- 並行功能用獨立 PR，合併前確認相依及更新最新整合分支；如不能建立 PR/執行驗證，記錄 blocker，**不可改走直接 push**。
+- 此文件為工作方式，不代表 GitHub Ruleset 已啟用；須另行設定與讀回預設分支的 Require PR、必須 CI、禁止 force push/刪除。
+- **當前過渡狀態：此 repo 的 GitHub default 是 `feat/v1-specs-m1`，暫視作受保護整合分支；尚無 main。須另案確認 CI/部署來源後再安全建立與切換 main，禁止直接推送現有 default。**
+
+
 # PersonalWorkStation Repository Rules
 
 ## 規格與範圍
@@ -13,9 +25,9 @@ Repo 修改完成後，除非使用者明確要求暫停，必須連續完成：
 
 1. 執行與變更範圍相稱的必要驗證。
 2. 安全且明確的一般錯誤自行修正並重跑驗證。
-3. Commit 到目前工作分支。
-4. Push 目前工作分支。
-5. 回報分支、commit hash、驗證結果與 push 結果。
+3. Commit 到專屬短期分支。
+4. Push 該工作分支並建立指向當前整合分支的 PR，審核差異及 CI 後 Squash Merge。
+5. 回報分支、PR URL、head SHA、CI、merge SHA 與適用的部署讀回；未合併須標示 pending。
 
 不得以只修改檔案、只通過本機檢查或只建立 commit 取代完整交付流程。若 push 被真正的 authentication 或 permission failure 阻擋，記錄為 manual blocker，保留已完成的 commit，並繼續不依賴該權限的工作。
 
