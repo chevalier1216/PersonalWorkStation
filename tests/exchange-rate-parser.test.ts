@@ -27,4 +27,26 @@ describe("E.SUN exchange rate parser", () => {
       parseEsunRates("資料日期：2026年09月23日 10:48:00 USD 1 2 3 4"),
     ).toThrow("CNY");
   });
+
+  it("does not read cash prices from unselected adjacent currencies", () => {
+    const html = `<p>資料日期：2026年09月28日 01:30:01</p>
+      <div>USD 31.75 31.85 - - 31.5 32.05</div>
+      <div>CNY 4.707 4.757 - - 4.661 4.821</div>
+      <div>HKD 4.022 4.082 - - 3.952 4.112</div>
+      <div>JPY 0.2003 0.2043 - - 0.1993 0.2063</div>
+      <div>EUR 36.03 36.43 - - 35.73 36.73</div>
+      <div>AUD 22.22 22.44 - - 21.93 22.73</div>
+      <div>CAD 22.39 22.57 - - 22.08 22.88</div>`;
+    const result = parseEsunRates(html);
+    expect(result.rates[1]).toMatchObject({
+      currency: "CNY",
+      cash_buy: 4.661,
+      cash_sell: 4.821,
+    });
+    expect(result.rates[4]).toMatchObject({
+      currency: "AUD",
+      cash_buy: 21.93,
+      cash_sell: 22.73,
+    });
+  });
 });
