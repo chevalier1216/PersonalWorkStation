@@ -47,8 +47,8 @@ describe("expanded Calendar months", () => {
       month.dates.map((date) => date.toLocaleDateString("sv-SE")),
     );
     expect(months.map((month) => month.key)).toEqual(["2026-09", "2026-10"]);
-    expect(months.map((month) => month.dates.length)).toEqual([3, 31]);
-    expect(dates[0]).toBe("2026-09-28");
+    expect(months.map((month) => month.dates.length)).toEqual([30, 31]);
+    expect(dates[0]).toBe("2026-09-01");
     expect(dates.at(-1)).toBe("2026-10-31");
     for (let index = 1; index < dates.length; index++) {
       const previous = months.flatMap((month) => month.dates)[index - 1];
