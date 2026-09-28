@@ -1,4 +1,6 @@
 export const currencies = ["USD", "CNY", "JPY", "EUR", "AUD"] as const;
+const pageCurrencyCodes =
+  /\b(?:USD|CNY|HKD|JPY|EUR|AUD|CAD|GBP|ZAR|NZD|CHF|SEK|SGD|MXN|THB)\b/g;
 export type ParsedRate = {
   currency: (typeof currencies)[number];
   spot_buy: number;
@@ -31,14 +33,13 @@ export function parseEsunRates(html: string) {
     );
     let values: number[] = [];
     for (const start of occurrences) {
-      const laterCodes = currencies.flatMap((item) =>
-        [
-          ...text
-            .slice(start + currency.length)
-            .matchAll(new RegExp(`\\b${item}\\b`, "g")),
-        ].map((match) => start + currency.length + match.index!),
-      );
-      const end = laterCodes.length ? Math.min(...laterCodes) : start + 800;
+      const nextCodeOffset = text
+        .slice(start + currency.length)
+        .search(pageCurrencyCodes);
+      const end =
+        nextCodeOffset >= 0
+          ? start + currency.length + nextCodeOffset
+          : start + 800;
       values = [
         ...text
           .slice(start, end)
