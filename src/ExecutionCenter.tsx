@@ -600,7 +600,6 @@ export function ExecutionSummary({
     <section className="today-module" aria-label="AI 執行狀態">
       <div className="module-heading">
         <div>
-          <p className="eyebrow">AI EXECUTION</p>
           <h2>AI 執行狀態</h2>
         </div>
       </div>
@@ -631,3 +630,4 @@ export function ExecutionSummary({
     </section>
   );
 }
+

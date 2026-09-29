@@ -50,3 +50,4 @@ describe("E.SUN exchange rate parser", () => {
     });
   });
 });
+

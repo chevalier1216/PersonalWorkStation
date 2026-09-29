@@ -148,3 +148,4 @@ test("expanding Taiwan holidays pushes exchange rates down without overlap", asy
     holidayBox!.y + holidayBox!.height,
   );
 });
+

@@ -148,3 +148,4 @@ export function AIChat({
     </section>
   );
 }
+

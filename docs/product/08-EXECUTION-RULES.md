@@ -99,6 +99,13 @@ npm run build
 - 在使用者確認 credential、權限或 connector 狀態已改變前，不得重試相同登入或驗證路徑，不得無限重試。
 - GitHub authentication blocker 不得阻塞其他可獨立完成的實作、驗證、文件更新或本機 commit。
 
+## GitHub PR 中文表述規則（硬性執行規則）
+
+- Codex / Agent 新建或更新 GitHub PR 時，標題、說明、檢查結果、風險、阻塞與後續動作一律使用繁體中文。
+- 產品名稱、程式識別字、API／工具名稱、檔案路徑、分支名稱、commit SHA、CI job 名稱等專有名詞可保留英文原文；需要解釋時以繁體中文說明。
+- 引用英文錯誤訊息或外部原文時保留必要原文，並以繁體中文補充其意義；不得因此將整段 PR 改用英文撰寫。
+- 此規則適用於後續 PR 的標題、描述及 Agent 撰寫的留言／審查回覆；既有 PR 僅在使用者要求或該 PR 再次更新時整理，不重寫他人內容。
+
 ### Google OAuth / Calendar Manual Blocker
 
 - Google OAuth 或 Calendar 若需要使用者本人登入、同意授權或操作 Google 頁面，必須記錄為 manual blocker。
@@ -107,15 +114,13 @@ npm run build
 
 ## Default Repository Completion Rule（硬性執行規則）
 
-必須同時遵守 [跨專案 Git 交付政策](https://github.com/chevalier1216/KarpathyWiki_personal/blob/main/CROSS_PROJECT_GIT_POLICY.md)；直接 commit/push 整合分支不構成有效交付。現階段 default 為 `feat/v1-specs-m1`、尚無 main；在安全切換前先視其為受保護整合分支。
-
 任何 repo 修改完成後，除非使用者明確要求暫停或只產生未提交草稿，預設必須連續完成：
 
 1. 執行與變更範圍相稱的必要驗證。
 2. 對安全且明確的一般錯誤自行修正並重跑驗證。
-3. 從最新整合分支建立專屬工作分支，將本任務 commit 到該分支。
-4. Push 工作分支，建立 PR；diff、必要 CI、衝突與風險審查通過才可 Squash Merge 到整合分支。
-5. 回報 Base、Branch、PR URL、head SHA、CI、merge SHA、部署讀回（如適用）與回檔路徑；停在 PR 時不得宣稱已交付整合。
+3. Commit 到目前工作分支。
+4. Push 目前工作分支。
+5. 回報目前分支、commit hash、驗證結果與 push 結果。
 
 不得以只修改檔案、只通過本機檢查或只建立 commit 取代完整交付流程。
 
@@ -171,3 +176,4 @@ npm run build
 不應為一個 Calendar 任務把所有其他 module 全塞入 Context。
 
 這是這組文件拆分的主要目的。
+

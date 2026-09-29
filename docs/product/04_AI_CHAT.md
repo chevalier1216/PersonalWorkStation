@@ -54,3 +54,4 @@ Chat 不只回覆「正在處理」，而是：
 - 多個互斥方案且既有規格無法判定
 
 其餘普通錯誤由 AI Execution Center 的 Retry / Pause 機制處理。
+

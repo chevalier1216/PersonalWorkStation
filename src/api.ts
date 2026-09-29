@@ -261,3 +261,4 @@ export async function command(
   if (error) throw new Error(error.message);
   return normalizeSnapshot(data as Partial<Snapshot>);
 }
+

@@ -61,7 +61,6 @@ export function ExchangeRates({
     >
       <div className="module-heading">
         <div>
-          <p className="eyebrow">E.SUN BANK · TWD</p>
           <h2>外幣匯率</h2>
           <p className="subtle">
             {state.last_success_at
@@ -125,3 +124,4 @@ export function ExchangeRates({
     </section>
   );
 }
+
