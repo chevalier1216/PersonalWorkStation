@@ -95,7 +95,7 @@ test("Calendar sync, selection and Task event relation survive refresh", async (
     name: "Google Calendar",
   });
   await refreshedCalendar
-    .getByRole("button", { name: "選擇 Calendar" })
+    .getByRole("button", { name: "選擇行事曆" })
     .click();
   await expect(
     refreshedCalendar.getByLabel("個人行事曆（主要）"),
@@ -161,3 +161,4 @@ test("Calendar API failure keeps the Task, notifies and offers Retry", async ({
     page.getByRole("button", { name: title, exact: true }),
   ).toBeVisible();
 });
+

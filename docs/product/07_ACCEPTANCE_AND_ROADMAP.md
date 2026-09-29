@@ -59,3 +59,4 @@ V1 必須實際證明：
 Workflow Editor / Builder。
 
 V2 允許視覺化配置 Trigger、AI、Tool、Condition、Verification、Human Gate、Output，但必須沿用 V1 的 Run / Node 資料模型。
+

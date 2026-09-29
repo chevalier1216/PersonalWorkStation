@@ -110,3 +110,4 @@ describe("Google Calendar mapping", () => {
     ).toMatchObject({ event_id: "all-day", all_day: true, title: "(無標題)" });
   });
 });
+

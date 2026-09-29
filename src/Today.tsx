@@ -192,16 +192,19 @@ function TaskRows({
   tasks,
   openTask,
   futureStartDay,
+  compactEmpty = false,
 }: {
   title: string;
   tasks: Task[];
   openTask: (id: string) => void;
   futureStartDay?: string;
+  compactEmpty?: boolean;
 }) {
   return (
     <section className="today-group" aria-label={title}>
       <h3>
-        {title} <span>{tasks.length}</span>
+        <span className="today-group-title">{title}</span>
+        <span className="today-group-count">{tasks.length}</span>
       </h3>
       {tasks.length ? (
         <ul>
@@ -225,9 +228,9 @@ function TaskRows({
             </li>
           ))}
         </ul>
-      ) : (
+      ) : !compactEmpty ? (
         <p className="subtle">目前沒有項目</p>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -619,7 +622,6 @@ export function Today({
         <section className="today-module" aria-label="今日任務">
           <div className="module-heading">
             <div>
-              <p className="eyebrow">TASKS</p>
               <h2>今天要做什麼</h2>
             </div>
           </div>
@@ -639,6 +641,7 @@ export function Today({
                   )}
                   openTask={openTask}
                   futureStartDay={key}
+                  compactEmpty
                 />
               );
             })}
@@ -652,9 +655,8 @@ export function Today({
         <section className="today-module" aria-label="Google Calendar">
           <div className="module-heading">
             <div>
-              <p className="eyebrow">GOOGLE CALENDAR</p>
               <h2>
-                行程 <span>{selected.length} 個 Calendar</span>
+                行程 <span>{selected.length} 個行事曆</span>
               </h2>
               <p className="subtle">
                 {data.google_calendar_sync.last_error
@@ -682,7 +684,7 @@ export function Today({
                     disabled={busy}
                     onClick={() => setEditingCalendars((value) => !value)}
                   >
-                    選擇 Calendar
+                    選擇行事曆
                   </button>
                 </>
               ) : (
@@ -697,7 +699,7 @@ export function Today({
           </div>
           {editingCalendars && data.google_calendars.length > 0 && (
             <fieldset className="calendar-picker">
-              <legend>顯示的 Calendar</legend>
+              <legend>顯示的行事曆</legend>
               {data.google_calendars.map((item) => (
                 <label key={item.calendar_id}>
                   <input
@@ -768,7 +770,6 @@ export function Today({
       <section className="today-module" aria-label="假日提醒">
         <div className="module-heading">
           <div>
-            <p className="eyebrow">TAIWAN HOLIDAYS</p>
             <h2>台灣假日提醒</h2>
           </div>
         </div>
@@ -804,7 +805,7 @@ export function Today({
     <>
       <div className="heading today-heading">
         <div>
-          <p className="eyebrow">
+          <p className="today-date">
             {now.toLocaleDateString("zh-TW", { dateStyle: "full" })}
           </p>
           <h1>今天</h1>
@@ -881,3 +882,4 @@ export function Today({
     </>
   );
 }
+
