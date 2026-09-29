@@ -9,6 +9,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b",
+    "check:migrations": "node scripts/check-migration-files.mjs",
+    "check:migration-history": "node scripts/check-migration-history.mjs",
     "executor:local": "node scripts/local-executor.mjs"
   },
   "dependencies": {
