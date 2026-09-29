@@ -46,6 +46,14 @@ AI 執行狀態需顯示：
 - Blocked / Waiting Human 等阻擋狀態需醒目但不遮蔽主要操作
 - 所有長任務需有可追蹤狀態，不只顯示「處理中」
 
+## 3.1 Guest Preview 與核准使用者
+
+- 未登入訪客直接進入完整工作台 UI，使用瀏覽器工作階段內的隔離展示資料。
+- Guest Preview 不得讀寫 Supabase 使用者資料、Supabase Storage、Google Calendar 或 Google Drive。
+- Google 登入沿用管理員維護的 `allowed_users`；未核准帳號不得載入私人工作資料。
+- 核准使用者只可存取自己的工作台資料與自己的 Google OAuth 授權。
+- Guest Preview 必須持續顯示展示模式標示及資料邊界。
+
 ## 4. 匯率
 
 顯示指定銀行之外幣兌新台幣匯率，區分：

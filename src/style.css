@@ -2015,3 +2015,45 @@ textarea {
   }
 }
 
+.preview-badge {
+  border: 1px solid #d3aa61;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  color: #f2d59b;
+  background: #59451e52;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.guest-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid #745d31;
+  padding: 0.65rem clamp(16px, 3vw, 40px);
+  color: #eedcb8;
+  background: #3c301c;
+  font-size: 0.82rem;
+}
+
+.guest-banner strong {
+  flex: 0 0 auto;
+}
+
+.guest-message {
+  margin-left: auto;
+  color: #ffd8d8;
+}
+
+@media (max-width: 700px) {
+  .guest-banner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .guest-message {
+    margin-left: 0;
+  }
+}

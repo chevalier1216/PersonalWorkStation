@@ -241,6 +241,9 @@ export function Board({
   workflows,
   exchangeRates,
   localExecutor,
+  accessMode = "approved",
+  accessMessage = "",
+  onSignIn,
 }: {
   execute: Execute;
   onSignOut?: () => Promise<void>;
@@ -251,6 +254,9 @@ export function Board({
   workflows?: WorkflowOperations;
   exchangeRates?: ExchangeRateOperations;
   localExecutor?: LocalExecutorOperations;
+  accessMode?: "guest" | "approved";
+  accessMessage?: string;
+  onSignIn?: () => Promise<void>;
 }) {
   const [data, setData] = useState<Snapshot>({
     columns: [],
@@ -554,7 +560,21 @@ export function Board({
         </a>
         <div className="header-actions">
           <NotificationBell items={data.notifications} run={run} />
-          <span className="private">私人看板</span>
+          <span
+            className={accessMode === "guest" ? "preview-badge" : "private"}
+          >
+            {accessMode === "guest" ? "Guest Preview" : "私人看板"}
+          </span>
+          {accessMode === "guest" && onSignIn && (
+            <button
+              disabled={busy}
+              onClick={() =>
+                onSignIn().catch((reason) => setError(String(reason)))
+              }
+            >
+              核准帳號登入
+            </button>
+          )}
           {onSignOut && (
             <button
               disabled={busy}
@@ -615,6 +635,18 @@ export function Board({
           設定
         </button>
       </nav>
+      {accessMode === "guest" && (
+        <div className="guest-banner" role="note">
+          <strong>展示模式</strong>
+          <span>
+            使用隔離範例資料；變更只保留於目前分頁工作階段，不會讀寫 Supabase
+            私人資料、Google Calendar 或 Google Drive。
+          </span>
+          {accessMessage && (
+            <span className="guest-message">{accessMessage}</span>
+          )}
+        </div>
+      )}
       {view === "today" ? (
         <main id="main-content">
           {error && (
@@ -1328,4 +1360,3 @@ function ColumnEditor({
     </Modal>
   );
 }
-

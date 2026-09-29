@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   supabase,
@@ -22,6 +22,7 @@ import {
 import { workflowCommand } from "./workflow";
 import { loadExchangeRates, refreshExchangeRates } from "./exchangeRates";
 import { createLocalExecutor } from "./localExecutor";
+import { createGuestWorkspace } from "./guestPreview";
 
 const googleCalendarScopes = [
   "openid",
@@ -35,9 +36,45 @@ const googleCalendarScopes = [
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  const [approved, setApproved] = useState(false);
+  const [approvalChecked, setApprovalChecked] = useState(false);
   const [error, setError] = useState("");
+  const startGoogleSignIn = useCallback(async () => {
+    if (!supabase) {
+      setError("正式登入服務尚未設定；你仍可使用 Guest Preview。");
+      return;
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + import.meta.env.BASE_URL,
+        scopes: googleCalendarScopes,
+        queryParams: { prompt: "consent" },
+      },
+    });
+    if (error) setError(error.message);
+  }, []);
+  const guest = useMemo(
+    () => createGuestWorkspace(undefined, startGoogleSignIn),
+    [startGoogleSignIn],
+  );
+  const checkApproval = useCallback(async (next: Session | null) => {
+    setSession(next);
+    if (!next || !supabase) {
+      setApproved(false);
+      setApprovalChecked(true);
+      setReady(true);
+      return;
+    }
+    setApprovalChecked(false);
+    const { data, error } = await supabase.rpc("is_allowed");
+    setError(error?.message ?? "");
+    setApproved(!error && data === true);
+    setApprovalChecked(true);
+    setReady(true);
+  }, []);
   useEffect(() => {
-    if (!session?.provider_token) return;
+    if (!approved || !session?.provider_token) return;
     let cancelled = false;
     attachmentCommand("load")
       .then(async (state) => {
@@ -53,62 +90,73 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [session?.provider_token]);
+  }, [approved, session?.provider_token]);
   useEffect(() => {
-    if (!supabase) return;
-    supabase.auth
+    if (!supabase) {
+      setReady(true);
+      setApprovalChecked(true);
+      return;
+    }
+    const client = supabase;
+    client.auth
       .getSession()
       .then(({ data, error }) => {
-        setSession(data.session);
         setError(error?.message ?? "");
-        setReady(true);
+        return checkApproval(data.session);
       })
       .catch((e) => {
         setError(String(e));
         setReady(true);
+        setApprovalChecked(true);
       });
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next);
-      setReady(true);
+    const { data } = client.auth.onAuthStateChange((_event, next) => {
+      void checkApproval(next);
     });
     return () => data.subscription.unsubscribe();
-  }, []);
-  if (!supabase)
-    return (
-      <main className="gate">
-        <p className="eyebrow">PERSONAL WORKSTATION</p>
-        <h1>連接你的工作臺</h1>
-        <p>尚未設定資料服務，任務功能暫時無法使用。</p>
-        <p>請依專案 README 完成 Supabase 與 Google 登入設定後重新啟動。</p>
-      </main>
-    );
-  if (!ready)
+  }, [checkApproval]);
+  useEffect(() => {
+    if (!approved || !session || !supabase) return;
+    const verify = () => void checkApproval(session);
+    window.addEventListener("focus", verify);
+    return () => window.removeEventListener("focus", verify);
+  }, [approved, checkApproval, session]);
+  if (!ready || (session && !approvalChecked))
     return (
       <main className="gate" aria-busy="true">
-        正在恢復登入狀態…
+        正在確認帳號核准狀態…
       </main>
     );
-  if (!session)
+  if (!session || !supabase)
+    return (
+      <Board
+        execute={guest.execute}
+        calendar={guest.calendar}
+        summaries={guest.summaries}
+        search={guest.search}
+        workflows={guest.workflows}
+        exchangeRates={guest.exchangeRates}
+        accessMode="guest"
+        onSignIn={startGoogleSignIn}
+        accessMessage={error}
+      />
+    );
+  if (!approved)
     return (
       <main className="gate">
-        <p className="eyebrow">PERSONAL WORKSTATION</p>
-        <h1>把工作整理好，從這裡開始。</h1>
-        <p>使用指定的 Google 帳號登入你的私人工作臺。</p>
+        <p className="eyebrow">ACCESS REVIEW</p>
+        <h1>此帳號尚未獲准</h1>
+        <p>
+          {session.user.email ?? "目前的 Google 帳號"} 不在管理員維護的
+          allowed_users。私人資料未載入。
+        </p>
         {error && <p role="alert">{error}</p>}
         <button
           onClick={async () => {
-            const { error } = await supabase!.auth.signInWithOAuth({
-              provider: "google",
-              options: {
-                redirectTo: window.location.origin + import.meta.env.BASE_URL,
-                scopes: googleCalendarScopes,
-                queryParams: { prompt: "consent" },
-              },
-            });
+            const { error } = await supabase!.auth.signOut();
             if (error) setError(error.message);
           }}
         >
-          使用 Google 登入
+          登出並返回 Guest Preview
         </button>
       </main>
     );
@@ -170,6 +218,8 @@ export function App() {
         publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         bridgeUrl: import.meta.env.VITE_LOCAL_EXECUTOR_URL,
       })}
+      accessMode="approved"
+      accessMessage={session.user.email ?? "核准使用者"}
       onSignOut={async () => {
         const { error } = await supabase!.auth.signOut();
         if (error) throw error;
