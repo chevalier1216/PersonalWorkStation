@@ -36,9 +36,9 @@ Production 已有完整資料表、RLS、Policy、Function、Trigger 與附件 b
 
 `workspace_command_core_priority_reminders` 的 `pg_get_functiondef` 只有換行與欄位排列空白差異，SQL token 與字串內容一致。其餘項目逐字一致。`202609230002` 的資料修正條件也已核對：現有 1 筆 Today preference 合法，兩個 constraint 已驗證並包含全部允許模組。
 
-## 可補登為 Applied 的版本
+## 已核對並補登為 Applied 的版本
 
-以下版本的實際最終效果均已在 Production 找到，可使用官方 `migration repair --status applied` 補登；不得重新執行建表 SQL：
+以下版本的實際最終效果均已在 Production 找到，並已使用官方 `migration repair --status applied` 補登；沒有重新執行建表 SQL：
 
 1. `202609190001` — Board 基礎 tables、RLS、policies、functions、triggers
 2. `202609200001` — Task details 與 command
@@ -74,6 +74,15 @@ Supabase Dashboard 讀回結果：
 - 每次正式部署前先執行 `migration list` 與 `db push --dry-run`。只要 History 缺版或出現 repo 未知 remote version，就停止部署並修復差異。
 - Supabase GitHub Integration 成功套用新的 migration 後會寫入其 version；不得手動刪除 migration history，也不得改寫已套用 migration 檔。
 
-## 待核准的 Production 寫入
+## Production repair 結果
 
-目前只完成備份、唯讀比對與防呆；尚未修改 Production。下一步只會對上述 14 個 version 執行官方 `supabase migration repair --status applied`，它只補登 History，不重新執行既有 DDL。完成後需再次讀回 `migration list`、執行 `db push --dry-run`，並由既有 CI/CD 驗證 Production deploy。
+使用者於 2026-09-29 明確授權後，只對上述 14 個 version 執行官方 `supabase migration repair --status applied`。CLI 回報 `repairAll=false`，沒有重新執行 migration DDL。
+
+repair 後讀回與驗證：
+
+- `migration list --linked`：14 個 local／remote version 全部一對一相同。
+- `npm run check:migration-history`：PASS，Production History 不缺版且沒有 repo 未知 remote version。
+- `db push --dry-run --linked`：`upToDate=true`、`migrations=[]`、`Remote database is up to date.`。
+- 稽核輸出保存於修復前備份目錄的 `audit/post-repair-migration-list.txt`。
+
+這次寫入只補登 `supabase_migrations.schema_migrations`。下一步由 PR #7 的 Required Checks 與既有 Supabase GitHub Integration 驗證受保護 Production branch；驗證成功後才解除 PR #6 阻擋。
