@@ -1,0 +1,13 @@
+{
+  "workerName": "personal-workstation-remote",
+  "maxAttempts": 2,
+  "staleAfterMinutes": 180,
+  "stateRoot": "C:\\Users\\YOUR_USER\\AppData\\Local\\PersonalWorkStation\\codex-issue-worker",
+  "repositories": [
+    {
+      "nameWithOwner": "chevalier1216/PersonalWorkStation",
+      "repositoryRoot": "G:\\Projects\\PersonalStation\\PersonalWorkStation-migration-history",
+      "baseBranch": "feat/v1-specs-m1"
+    }
+  ]
+}
