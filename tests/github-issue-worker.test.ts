@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -165,5 +165,20 @@ describe("GitHub Issue Codex Worker", () => {
       }),
     ).not.toThrow();
     expect(blockedComment("請恢復 gh 認證")).toContain("codex:blocked");
+  });
+
+  it("排程使用 LocalAppData runtime，不依賴會切換 branch 的 repository scripts", async () => {
+    const installer = await readFile(
+      resolve("scripts/Install-CodexIssueWorkerTask.ps1"),
+      "utf8",
+    );
+    expect(installer).toContain("$runtimeRoot = Join-Path $stateRoot 'runtime'");
+    expect(installer).toContain(
+      "$runner = Join-Path $runtimeRoot 'Run-CodexIssueWorker.ps1'",
+    );
+    expect(installer).toContain(
+      "$worker = Join-Path $runtimeRoot 'github-issue-worker.mjs'",
+    );
+    expect(installer).toContain("Copy-Item -LiteralPath $source");
   });
 });

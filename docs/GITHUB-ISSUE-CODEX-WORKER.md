@@ -1,6 +1,6 @@
 # GitHub Issue → Codex Worker
 
-版本：`ver.26.09.30.1`
+版本：`ver.26.09.30.2`
 狀態：功能 branch 實作；真實 GitHub E2E 與排程啟用狀態以本文件「驗證紀錄」為準。
 
 ## 用途與邊界
@@ -60,9 +60,10 @@ pwsh -NoProfile -File .\scripts\Install-CodexIssueWorkerTask.ps1
 
 1. 驗證白名單 repository 與必要 instructions。
 2. 將具體 mapping 寫入 `%LOCALAPPDATA%\PersonalWorkStation\codex-issue-worker\config.json`。
-3. 建立或更新四個 GitHub labels。
-4. 建立登入觸發與每 5 分鐘觸發的 Scheduled Task。
-5. 設為 `IgnoreNew`，避免前一輪尚未完成時平行啟動。
+3. 將 Worker runtime 複製到 `%LOCALAPPDATA%\PersonalWorkStation\codex-issue-worker\runtime`，避免 repository 切換到 Issue branch 後遺失排程入口。
+4. 建立或更新四個 GitHub labels。
+5. 建立登入觸發與每 5 分鐘觸發的 Scheduled Task。
+6. 設為 `IgnoreNew`，避免前一輪尚未完成時平行啟動。
 
 預檢但不註冊：
 

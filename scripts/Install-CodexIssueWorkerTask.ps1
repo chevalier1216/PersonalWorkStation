@@ -21,6 +21,7 @@ foreach ($required in 'AGENTS.md', 'docs\product\00_PRD_INDEX.md', 'docs\product
 }
 
 $stateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'PersonalWorkStation\codex-issue-worker'
+$runtimeRoot = Join-Path $stateRoot 'runtime'
 $configPath = Join-Path $stateRoot 'config.json'
 $config = [ordered]@{
     workerName = $WorkerName
@@ -42,8 +43,25 @@ if (-not $PSCmdlet.ShouldProcess($configPath, '寫入 Codex Issue Worker 本機�
 New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
 $config | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $configPath -Encoding utf8
 
+# Scheduled runs must not depend on whichever Git branch is currently checked
+# out in the managed repository. Keep an immutable local runtime copy so the
+# worker can safely switch that checkout to codex/issue-* branches.
+New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
+foreach ($runtimeFile in @(
+    'Run-CodexIssueWorker.ps1',
+    'github-issue-worker.mjs',
+    'github-issue-worker-lib.mjs',
+    'github-issue-worker-output.schema.json'
+)) {
+    $source = Join-Path $PSScriptRoot $runtimeFile
+    if (-not (Test-Path -LiteralPath $source)) {
+        throw "Worker runtime 缺少必要檔案：$runtimeFile"
+    }
+    Copy-Item -LiteralPath $source -Destination (Join-Path $runtimeRoot $runtimeFile) -Force
+}
+
 $node = (Get-Command node -ErrorAction Stop).Source
-$worker = Join-Path $root 'scripts\github-issue-worker.mjs'
+$worker = Join-Path $runtimeRoot 'github-issue-worker.mjs'
 if (-not $SkipGitHubSetup) {
     & $node $worker --config $configPath --setup
     if ($LASTEXITCODE -ne 0) {
@@ -51,7 +69,7 @@ if (-not $SkipGitHubSetup) {
     }
 }
 
-$runner = Join-Path $root 'scripts\Run-CodexIssueWorker.ps1'
+$runner = Join-Path $runtimeRoot 'Run-CodexIssueWorker.ps1'
 $powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
 $arguments = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$runner`" -ConfigPath `"$configPath`""
 $action = New-ScheduledTaskAction -Execute $powershell -Argument $arguments -WorkingDirectory $root
