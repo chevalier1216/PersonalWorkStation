@@ -58,6 +58,7 @@ npm run build
 - `SUPABASE_PUBLISHABLE_KEY`
 
 兩者會打包至瀏覽器，僅能使用 publishable key；不得設定 service role 或資料庫密碼。正式發布還需將 Pages URL 加入 Supabase Auth redirect allowlist。
+
 ## 本機 Executor bridge
 
 AI 執行中心以本機 Codex CLI 執行 Run，不使用 OpenAI API key。先確認已在本機登入 Codex，於 repository root 執行：
@@ -67,6 +68,10 @@ npm run executor:local
 ```
 
 bridge 僅監聽 `127.0.0.1:4317`，預設接受本機開發頁與 `https://chevalier1216.github.io`。若正式站改用其他 origin，啟動前以 `PWS_ALLOWED_ORIGINS` 明確加入。執行會使用目前 Codex 訂閱額度；接近用量上限時應暫停 Run。
+
+## GitHub Issue 自動交接
+
+Windows Remote 可使用本機 Scheduled Task，每 5 分鐘將帶有 `codex:ready` 的開發 Issue 交給既有 Codex CLI，並回寫 branch、commit、PR 與驗證結果。安裝、狀態 label、recovery、安全邊界及真實 E2E 證據要求見 [GitHub Issue → Codex Worker](docs/GITHUB-ISSUE-CODEX-WORKER.md)。此流程不會因一般 Task 或 Calendar 資料異動而觸發。
 
 ## 玉山外幣匯率
 
