@@ -1,6 +1,6 @@
 # GitHub Issue → Codex Worker
 
-版本：`ver.26.09.30.6`
+版本：`ver.26.09.30.7`
 狀態：功能 branch 實作；真實 GitHub E2E 與排程啟用狀態以本文件「驗證紀錄」為準。
 
 ## 用途與邊界
@@ -39,6 +39,7 @@ Worker 只會選擇 Open、具有 `codex:ready`，且沒有其餘三個狀態 la
 - 普通工程錯誤最多執行兩次有界修復；登入、權限、OAuth、Secret、費用、破壞性操作或真正規格衝突改為 `codex:blocked`。
 - GitHub authentication failure 會開啟本機 circuit；後續排程不再反覆登入。恢復既有認證後執行 `--doctor`，驗證成功才解除 circuit。
 - console 與排程 log 會遮蔽常見 token／secret 格式，且不保存 Codex stdout。
+- Windows PowerShell runner 明確以 UTF-8 解碼 Node 輸出，繁中狀態可直接閱讀。
 
 ## 前置條件
 
