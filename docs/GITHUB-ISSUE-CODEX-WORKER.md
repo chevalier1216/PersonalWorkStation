@@ -1,6 +1,6 @@
 # GitHub Issue → Codex Worker
 
-版本：`ver.26.09.30.7`
+版本：`ver.26.09.30.8`
 狀態：功能 branch 實作；真實 GitHub E2E 與排程啟用狀態以本文件「驗證紀錄」為準。
 
 ## 用途與邊界
@@ -130,3 +130,38 @@ pwsh -NoProfile -File .\scripts\Uninstall-CodexIssueWorkerTask.ps1
 - blocker 測試 Issue 進入 `codex:blocked` 且沒有無限重試。
 - Scheduled Task 名稱、最後執行結果與五分鐘重複設定。
 - 沒有 OpenAI API key、新付費服務或公開 Port。
+
+### 2026-09-30 實際驗證結果
+
+實作 branch 為 `feat/github-issue-codex-worker`，獨立交付為 PR [#8](https://github.com/chevalier1216/PersonalWorkStation/pull/8)；主要 runtime 修正涵蓋至 commit `66a2b04`。未 merge。
+
+Happy path：
+
+- Issue [#9](https://github.com/chevalier1216/PersonalWorkStation/issues/9) 實際完成 `codex:ready → codex:running → codex:done`，保留開始、blocker recovery 與完成留言。
+- 固定 branch：`codex/issue-9-e2e-github-issue-codex-worker-happy-path`。
+- commit：`2dad385d33578e248f40532b6f21ec191e704adc`。
+- 獨立 PR [#10](https://github.com/chevalier1216/PersonalWorkStation/pull/10)，base 為 `feat/v1-specs-m1`，維持 Open、未 merge。
+- PR #10 的兩個 `V1 verification / verify` run 均通過；內容只新增驗證文件，未修改產品程式、正式資料、資料庫或部署設定。
+- 完成後第二次掃描回報 `idle`，相同 head branch 仍只有 PR #10，沒有重複 branch／PR。
+- 第一次執行曾把已授權的 PR 建立誤判為 Human Gate；修正可信 prompt 後由同一 Issue、branch、commit recovery 完成，並加入 regression test。
+
+Blocker path：
+
+- Issue [#12](https://github.com/chevalier1216/PersonalWorkStation/issues/12) 使用可移除的未追蹤 sentinel 模擬 dirty worktree。
+- Worker 先 claim 為 `codex:running`，隨後保護既有工作並轉為 `codex:blocked`；未清除檔案、未執行 Codex、未 push、未建立 PR。
+- blocker 後第二次掃描回報 `idle`，Issue 留言數維持 `2 → 2`，證明沒有無限重試；sentinel 已移除。
+
+本機與排程：
+
+- 最終 focused Worker tests：`10/10`；全套 `npm test`：`13` 個檔案、`59/59` tests 通過。
+- `npm run typecheck`、`npm run build`、三個 PowerShell script parser 皆通過；產品 UI 未因最終 Worker-only 修正重跑 E2E，先前隔離 commit 的 desktop/mobile E2E 為 `46/46` 通過。
+- Task：`PersonalWorkStation Codex Issue Worker`；runtime 位於 `%LOCALAPPDATA%\PersonalWorkStation\codex-issue-worker\runtime`；專用 checkout 為 `G:\Projects\PersonalStation\PersonalWorkStation-worker-run`。
+- Task 設定為登入觸發、`PT5M` 重複、`IgnoreNew`。2026-09-30 21:23（Asia/Taipei）實際啟動後回到 `Ready`，`LastTaskResult = 0`、`NumberOfMissedRuns = 0`，UTF-8 log 明確記錄 `idle`。
+- 未使用 OpenAI API key、未新增付費 API／服務、未開公開 Port，也未執行 production deploy。
+
+GitHub CLI 認證診斷：
+
+- 實際 Windows 使用者環境的 `gh auth status`、`gh api user` 與 `gh pr view` 均成功；帳號 `chevalier1216` 使用 Windows keyring。
+- 沒有 process／user／machine 層級的 `GH_TOKEN` 或 `GITHUB_TOKEN` 覆寫，Windows Vault service 正常。
+- 先前的 401／無憑證結果只發生在無法讀取 Windows Credential Manager 的 Codex sandbox；同一時間在實際使用者環境驗證成功。這是環境隔離造成的假陰性，不是 `gh` 憑證持續失效。
+- Worker、installer 與 Scheduled Task 的 GitHub 操作必須在實際使用者／Task Scheduler context 執行；不得因 sandbox 診斷失敗而例行重跑 `gh auth login`。
