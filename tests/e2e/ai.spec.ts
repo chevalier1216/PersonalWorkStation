@@ -73,7 +73,7 @@ test("desktop site tools use the signed-in Task commands and persist changes", a
             .__siteTools?.size ?? 0,
       ),
     )
-    .toBe(3);
+    .toBe(4);
   const title = `Site tool ${test.info().project.name}`;
   const created = await page.evaluate(async (taskTitle) => {
     const tools = (
@@ -140,3 +140,81 @@ test("desktop site tools use the signed-in Task commands and persist changes", a
   ).toBeVisible();
 });
 
+test("calendar site tool creates an independent event and deduplicates retries", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    type Tool = {
+      name: string;
+      execute: (
+        input: Record<string, unknown>,
+      ) => Promise<{ content: Array<{ text: string }> }>;
+    };
+    const tools = new Map<string, Tool>();
+    (window as Window & { __siteTools?: Map<string, Tool> }).__siteTools =
+      tools;
+    Object.defineProperty(document, "modelContext", {
+      value: {
+        registerTool: async (
+          tool: Tool,
+          { signal }: { signal: AbortSignal },
+        ) => {
+          if (signal.aborted) return;
+          tools.set(tool.name, tool);
+          signal.addEventListener("abort", () => {
+            if (tools.get(tool.name) === tool) tools.delete(tool.name);
+          });
+        },
+      },
+    });
+  });
+  await page.goto("/PersonalWorkStation/tests/fixture.html");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { __siteTools?: Map<string, unknown> })
+            .__siteTools?.size ?? 0,
+      ),
+    )
+    .toBe(4);
+  const title = `Calendar Site Tool ${test.info().project.name}`;
+  const execute = () =>
+    page.evaluate(
+      async ({ eventTitle }) => {
+        const tools = (
+          window as unknown as Window & {
+            __siteTools: Map<
+              string,
+              {
+                execute: (
+                  input: Record<string, unknown>,
+                ) => Promise<{ content: Array<{ text: string }> }>;
+              }
+            >;
+          }
+        ).__siteTools;
+        const date = new Date().toISOString().slice(0, 10);
+        const response = await tools.get("calendar_create_event")!.execute({
+          title: eventTitle,
+          start_at: `${date}T19:30:00+08:00`,
+          timezone: "Asia/Taipei",
+          description: "不建立 Task 或 Run",
+        });
+        return JSON.parse(response.content[0].text) as {
+          event_id: string;
+          deduplicated: boolean;
+        };
+      },
+      { eventTitle: title },
+    );
+  const first = await execute();
+  expect(first.deduplicated).toBe(false);
+  const retry = await execute();
+  expect(retry.event_id).toBe(first.event_id);
+  expect(retry.deduplicated).toBe(true);
+
+  await page.reload();
+  await page.getByRole("button", { name: "行事曆", exact: true }).click();
+  await expect(page.getByText(title, { exact: true })).toHaveCount(1);
+});

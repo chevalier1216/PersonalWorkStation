@@ -10,6 +10,10 @@ AI Chat 是工作台內的需求與討論入口。
 
 2026-09-26 使用者指定替代形式：在 Windows 桌面版 ChatGPT 的一般「對話」中，以內建瀏覽器開啟已登入的 PersonalWorkStation，直接對工作台下指令；不得消耗 Work 額度或使用付費 API。工作台可提供限於目前登入帳號的站點工具，先支援列出、建立及修改 Task，沿用既有資料庫權限與驗證。此形式仍須以指定帳號、GPT-5.6 Sol High 在桌面版實際完成真實 Task 建立／修改、重整保留及來源核對，才可列為通過；瀏覽器測試或單純顯示站點工具不等於完成。若帳號或模型不支援站點工具，維持暫停並回報原因，不改走 Work 或 API。當前 Task／Run 確認建立及手動 Summary 不依賴此入口。
 
+2026-09-30 將同一 Site Tools 方向擴充為 `calendar_create_event`。它只能在已登入、仍屬 `allowed_users` 且 Google Calendar 授權有效時，建立獨立 Google event；不建立 Task／Run。工具依 WebMCP 的 consequential annotation 宣告寫入副作用，由 ChatGPT 桌面版執行原生網站存取與確認流程。網站內容或工具描述本身不能代替使用者授權。
+
+Calendar 工具必須回傳實際 event ID、標題、開始／結束、時區、連結、成功狀態與是否命中防重。帳號、模型或桌面客戶端未支援 Site Tools 時，列為 platform/manual blocker；不得以測試 harness、工具清單可見、Work、付費 OpenAI API 或 ChatGPT Google Calendar Connector 宣稱通過。
+
 它負責：
 
 - 問答
@@ -54,4 +58,3 @@ Chat 不只回覆「正在處理」，而是：
 - 多個互斥方案且既有規格無法判定
 
 其餘普通錯誤由 AI Execution Center 的 Retry / Pause 機制處理。
-

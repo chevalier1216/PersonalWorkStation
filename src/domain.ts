@@ -147,6 +147,39 @@ export interface GoogleCalendarSyncState {
   last_success_at: string | null;
   last_error: string;
 }
+
+export const standaloneCalendarEventInput = z.object({
+  title: z.string().trim().min(1, "請輸入行程標題").max(300, "標題最多 300 字"),
+  start_at: z.string().datetime({
+    offset: true,
+    message: "開始時間必須是包含 UTC offset 的 RFC 3339 日期時間",
+  }),
+  end_at: z
+    .string()
+    .datetime({
+      offset: true,
+      message: "結束時間必須是包含 UTC offset 的 RFC 3339 日期時間",
+    })
+    .optional(),
+  timezone: z.string().trim().min(1).max(100).default("Asia/Taipei"),
+  description: z.string().max(20000).optional().default(""),
+});
+
+export type StandaloneCalendarEventInput = z.infer<
+  typeof standaloneCalendarEventInput
+>;
+
+export interface StandaloneCalendarEventResult {
+  status: "succeeded";
+  event_id: string;
+  title: string;
+  start_at: string;
+  end_at: string;
+  timezone: string;
+  html_link: string;
+  deduplicated: boolean;
+  snapshot: Snapshot;
+}
 export interface Snapshot {
   columns: Column[];
   tasks: Task[];

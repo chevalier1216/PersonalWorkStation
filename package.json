@@ -11,7 +11,9 @@
     "typecheck": "tsc -b",
     "check:migrations": "node scripts/check-migration-files.mjs",
     "check:migration-history": "node scripts/check-migration-history.mjs",
-    "executor:local": "node scripts/local-executor.mjs"
+    "executor:local": "node scripts/local-executor.mjs",
+    "worker:github-issue": "node scripts/github-issue-worker.mjs",
+    "worker:github-issue:doctor": "node scripts/github-issue-worker.mjs --doctor"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
