@@ -16,6 +16,7 @@ import priorityRemindersMigration from "../supabase/migrations/202609220002_prio
 import exchangeRateMigration from "../supabase/migrations/202609230001_exchange_rates.sql?raw";
 import todayPreferencesGuardMigration from "../supabase/migrations/202609230002_today_preferences_module_guard.sql?raw";
 import archiveClaimMigration from "../supabase/migrations/202609250001_archive_claim.sql?raw";
+import calendarSiteToolsMigration from "../supabase/migrations/202609300001_calendar_site_tools.sql?raw";
 import type { SummaryOperations, SummaryState } from "../src/summary";
 import type { SearchField, SearchResult } from "../src/search";
 import type { AttachmentOperations, AttachmentState } from "../src/attachments";
@@ -81,6 +82,11 @@ const hasArchiveClaim = await db.query<{ exists: boolean }>(
   "select to_regprocedure('public.attachment_archive_claim(uuid)') is not null as exists",
 );
 if (!hasArchiveClaim.rows[0].exists) await db.exec(archiveClaimMigration);
+const hasCalendarSiteTools = await db.query<{ exists: boolean }>(
+  "select to_regprocedure('public.calendar_oauth_status()') is not null as exists",
+);
+if (!hasCalendarSiteTools.rows[0].exists)
+  await db.exec(calendarSiteToolsMigration);
 const execute: Execute = async (action, payload = {}) => {
   if (new URLSearchParams(location.search).get("fail") === action)
     throw new Error("測試用連線中斷");
@@ -390,6 +396,72 @@ createRoot(document.getElementById("root")!).render(
               event_id: `event-${task.id}`,
               html_link: "https://calendar.google.com/calendar/event?eid=task",
             }),
+      createStandalone: async (input) => {
+        const current = await execute("load");
+        const endAt =
+          input.end_at ??
+          new Date(
+            new Date(input.start_at).getTime() + 30 * 60000,
+          ).toISOString();
+        const existing = current.google_events.find(
+          (event) =>
+            event.title === input.title &&
+            Date.parse(event.start_at ?? "") === Date.parse(input.start_at) &&
+            Date.parse(event.end_at ?? "") === Date.parse(endAt),
+        );
+        const eventId =
+          existing?.event_id ??
+          `site-${new Date(input.start_at).getTime()}-${input.title.length}`;
+        const snapshot = existing
+          ? current
+          : await execute("calendar_sync_success", {
+              calendars: current.google_calendars.length
+                ? current.google_calendars.map((calendar) => ({
+                    id: calendar.calendar_id,
+                    summary: calendar.summary,
+                    color: calendar.color,
+                    time_zone: calendar.time_zone,
+                    is_primary: calendar.is_primary,
+                    selected: calendar.selected,
+                  }))
+                : [
+                    {
+                      id: "primary@test",
+                      summary: "個人行事曆",
+                      color: "#6f9ed6",
+                      time_zone: input.timezone,
+                      is_primary: true,
+                      selected: true,
+                    },
+                  ],
+              events: [
+                ...current.google_events,
+                {
+                  calendar_id: "primary@test",
+                  event_id: eventId,
+                  title: input.title,
+                  start_at: new Date(input.start_at).toISOString(),
+                  end_at: new Date(endAt).toISOString(),
+                  start_date: null,
+                  end_date: null,
+                  all_day: false,
+                  html_link: `https://calendar.google.com/calendar/event?eid=${eventId}`,
+                  status: "confirmed",
+                },
+              ],
+            });
+        return {
+          status: "succeeded",
+          event_id: eventId,
+          title: input.title,
+          start_at: new Date(input.start_at).toISOString(),
+          end_at: new Date(endAt).toISOString(),
+          timezone: input.timezone,
+          html_link: `https://calendar.google.com/calendar/event?eid=${eventId}`,
+          deduplicated: Boolean(existing),
+          snapshot,
+        };
+      },
     }}
     summaries={summaries}
     search={{ search }}

@@ -3,7 +3,10 @@ import type { Session } from "@supabase/supabase-js";
 import {
   supabase,
   command,
+  createStandaloneCalendarEvent,
   createTaskCalendarEvent,
+  getGoogleCalendarCredentialStatus,
+  storeGoogleCalendarCredentials,
   syncGoogleCalendar,
 } from "./api";
 import { Board } from "./Board";
@@ -36,6 +39,8 @@ export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+  const [calendarCredentialAvailable, setCalendarCredentialAvailable] =
+    useState(false);
   useEffect(() => {
     if (!session?.provider_token) return;
     let cancelled = false;
@@ -73,6 +78,48 @@ export function App() {
     });
     return () => data.subscription.unsubscribe();
   }, []);
+  useEffect(() => {
+    if (!session) {
+      setCalendarCredentialAvailable(false);
+      return;
+    }
+    let cancelled = false;
+    const credentials =
+      session.provider_token || session.provider_refresh_token;
+    const status = credentials
+      ? storeGoogleCalendarCredentials(
+          session.provider_token,
+          session.provider_refresh_token,
+        )
+      : getGoogleCalendarCredentialStatus();
+    status
+      .then((value) => {
+        if (!cancelled)
+          setCalendarCredentialAvailable(
+            value.available && !value.needs_reconnect,
+          );
+      })
+      .catch(() => {
+        if (!cancelled) setCalendarCredentialAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    session?.user.id,
+    session?.provider_token,
+    session?.provider_refresh_token,
+  ]);
+  async function withCalendarCredential<T>(operation: () => Promise<T>) {
+    try {
+      return await operation();
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : String(reason);
+      if (message.includes("重新連結") || message.includes("無法靜默續期"))
+        setCalendarCredentialAvailable(false);
+      throw reason;
+    }
+  }
   if (!supabase)
     return (
       <main className="gate">
@@ -102,7 +149,7 @@ export function App() {
               options: {
                 redirectTo: window.location.origin + import.meta.env.BASE_URL,
                 scopes: googleCalendarScopes,
-                queryParams: { prompt: "consent" },
+                queryParams: { access_type: "offline", prompt: "consent" },
               },
             });
             if (error) setError(error.message);
@@ -117,22 +164,25 @@ export function App() {
       key={session.user.id}
       execute={command}
       calendar={{
-        tokenAvailable: Boolean(session.provider_token),
+        tokenAvailable: calendarCredentialAvailable,
         connect: async () => {
           const { error } = await supabase!.auth.signInWithOAuth({
             provider: "google",
             options: {
               redirectTo: window.location.origin + import.meta.env.BASE_URL,
               scopes: googleCalendarScopes,
-              queryParams: { prompt: "consent" },
+              queryParams: { access_type: "offline", prompt: "consent" },
             },
           });
           if (error) throw error;
         },
-        sync: (snapshot) =>
-          syncGoogleCalendar(session.provider_token!, snapshot),
+        sync: () => withCalendarCredential(() => syncGoogleCalendar()),
         create: (task, calendarId) =>
-          createTaskCalendarEvent(session.provider_token!, task, calendarId),
+          withCalendarCredential(() =>
+            createTaskCalendarEvent(task, calendarId),
+          ),
+        createStandalone: (input) =>
+          withCalendarCredential(() => createStandaloneCalendarEvent(input)),
       }}
       summaries={{
         load: () => summaryCommand("load"),
@@ -147,7 +197,7 @@ export function App() {
             options: {
               redirectTo: window.location.origin + import.meta.env.BASE_URL,
               scopes: googleCalendarScopes,
-              queryParams: { prompt: "consent" },
+              queryParams: { access_type: "offline", prompt: "consent" },
             },
           });
           if (error) throw error;
