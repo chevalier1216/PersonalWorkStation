@@ -83,7 +83,7 @@ if (-not $SkipGitHubSetup) {
 
 $runner = Join-Path $runtimeRoot 'Run-CodexIssueWorker.ps1'
 $powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
-$arguments = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$runner`" -ConfigPath `"$configPath`" -ToolPathPrefix `"$toolPathPrefix`""
+$arguments = "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$runner`" -ConfigPath `"$configPath`" -ToolPathPrefix `"$toolPathPrefix`""
 $action = New-ScheduledTaskAction -Execute $powershell -Argument $arguments -WorkingDirectory $root
 $logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $repeatTrigger = New-ScheduledTaskTrigger `
@@ -92,6 +92,7 @@ $repeatTrigger = New-ScheduledTaskTrigger `
     -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) `
     -RepetitionDuration (New-TimeSpan -Days 3650)
 $settings = New-ScheduledTaskSettingsSet `
+    -Hidden `
     -MultipleInstances IgnoreNew `
     -StartWhenAvailable `
     -ExecutionTimeLimit (New-TimeSpan -Hours 6)
