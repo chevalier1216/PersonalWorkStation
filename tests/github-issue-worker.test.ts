@@ -202,5 +202,7 @@ describe("GitHub Issue Codex Worker", () => {
     expect(installer).toContain("避免覆寫使用中的 runtime");
     expect(installer).toContain("Get-Command codex.exe");
     expect(installer).toContain("-ToolPathPrefix");
+    expect(installer).toContain("-WindowStyle Hidden");
+    expect(installer).toContain("-Hidden `");
   });
 });
