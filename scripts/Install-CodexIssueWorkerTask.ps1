@@ -20,6 +20,11 @@ foreach ($required in 'AGENTS.md', 'docs\product\00_PRD_INDEX.md', 'docs\product
     }
 }
 
+$existingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+if ($existingTask -and $existingTask.State -eq 'Running') {
+    throw "Scheduled Task 正在執行，為避免覆寫使用中的 runtime，請等待本輪完成後再更新：$TaskName"
+}
+
 $stateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'PersonalWorkStation\codex-issue-worker'
 $runtimeRoot = Join-Path $stateRoot 'runtime'
 $configPath = Join-Path $stateRoot 'config.json'
@@ -60,7 +65,14 @@ foreach ($runtimeFile in @(
     Copy-Item -LiteralPath $source -Destination (Join-Path $runtimeRoot $runtimeFile) -Force
 }
 
-$node = (Get-Command node -ErrorAction Stop).Source
+$node = (Get-Command node.exe -ErrorAction Stop).Source
+$git = (Get-Command git.exe -ErrorAction Stop).Source
+$gh = (Get-Command gh.exe -ErrorAction Stop).Source
+$codex = (Get-Command codex.exe -ErrorAction Stop).Source
+$toolPathPrefix = @($node, $git, $gh, $codex) |
+    ForEach-Object { Split-Path -Parent $_ } |
+    Select-Object -Unique
+$toolPathPrefix = $toolPathPrefix -join [IO.Path]::PathSeparator
 $worker = Join-Path $runtimeRoot 'github-issue-worker.mjs'
 if (-not $SkipGitHubSetup) {
     & $node $worker --config $configPath --setup
@@ -71,7 +83,7 @@ if (-not $SkipGitHubSetup) {
 
 $runner = Join-Path $runtimeRoot 'Run-CodexIssueWorker.ps1'
 $powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
-$arguments = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$runner`" -ConfigPath `"$configPath`""
+$arguments = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$runner`" -ConfigPath `"$configPath`" -ToolPathPrefix `"$toolPathPrefix`""
 $action = New-ScheduledTaskAction -Execute $powershell -Argument $arguments -WorkingDirectory $root
 $logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $repeatTrigger = New-ScheduledTaskTrigger `

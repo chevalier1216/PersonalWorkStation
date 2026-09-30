@@ -198,5 +198,9 @@ describe("GitHub Issue Codex Worker", () => {
       "$worker = Join-Path $runtimeRoot 'github-issue-worker.mjs'",
     );
     expect(installer).toContain("Copy-Item -LiteralPath $source");
+    expect(installer).toContain("$existingTask.State -eq 'Running'");
+    expect(installer).toContain("避免覆寫使用中的 runtime");
+    expect(installer).toContain("Get-Command codex.exe");
+    expect(installer).toContain("-ToolPathPrefix");
   });
 });
