@@ -79,9 +79,22 @@ describe("Calendar credential and idempotency database boundary", () => {
       }),
     ).rejects.toThrow("尚未獲准");
 
+    await expect(
+      db.transaction(async (tx) => {
+        await tx.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({ role: "authenticated" }),
+        ]);
+        await tx.exec("set local role service_role");
+        await tx.query(
+          "select calendar_oauth_store($1,$2,now()+interval '1 hour',$3)",
+          [alice, "rejected-access", "rejected-refresh"],
+        );
+      }),
+    ).rejects.toThrow("service role required");
+
     await db.transaction(async (tx) => {
-      await tx.query("select set_config('request.jwt.claim.role',$1,true)", [
-        "service_role",
+      await tx.query("select set_config('request.jwt.claims',$1,true)", [
+        JSON.stringify({ role: "service_role" }),
       ]);
       await tx.exec("set local role service_role");
       await tx.query(
@@ -93,8 +106,8 @@ describe("Calendar credential and idempotency database boundary", () => {
     const key = "a".repeat(64);
     const claim = async () =>
       db.transaction(async (tx) => {
-        await tx.query("select set_config('request.jwt.claim.role',$1,true)", [
-          "service_role",
+        await tx.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({ role: "service_role" }),
         ]);
         await tx.exec("set local role service_role");
         return tx.query<{ value: { state: string; result?: unknown } }>(
@@ -105,8 +118,8 @@ describe("Calendar credential and idempotency database boundary", () => {
     expect((await claim()).rows[0].value.state).toBe("claimed");
     expect((await claim()).rows[0].value.state).toBe("pending");
     await db.transaction(async (tx) => {
-      await tx.query("select set_config('request.jwt.claim.role',$1,true)", [
-        "service_role",
+      await tx.query("select set_config('request.jwt.claims',$1,true)", [
+        JSON.stringify({ role: "service_role" }),
       ]);
       await tx.exec("set local role service_role");
       await tx.query("select calendar_site_tool_complete($1,$2,$3::jsonb)", [
