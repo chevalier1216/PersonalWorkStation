@@ -167,7 +167,7 @@ ${String(issue.body || "(無內文)")}
 
 必須先完整閱讀 repository root 的 AGENTS.md、docs/product/00_PRD_INDEX.md、docs/product/08-EXECUTION-RULES.md，再依 Issue 範圍讀取必要 authoritative module。先檢查 Git、現有 branch 與 PR 狀態；若是 recovery，延續既有成果，不重做或另開第二個 branch/PR。
 
-只處理此 Issue 的明確範圍。完成實作、必要測試、一般錯誤修正、commit、push，並建立或更新唯一一個指向 ${repository.baseBranch} 的 PR。PR 標題與說明使用繁體中文，關聯 Issue #${issue.number}，列出修改範圍、實際測試與限制；不得 merge。不得輸出 secret、token、password、OAuth secret 或 service role key，不得使用 OpenAI API key、付費 API、新 VPS、付費 queue 或新增付費 SaaS。
+只處理此 Issue 的明確範圍。外層使用者已在啟用本 Worker 時明確授權：更新此 Issue 的 labels／留言、建立或延續固定 branch、commit、push，以及建立或更新唯一 PR；這些已授權動作不得再次要求 Human Gate。完成實作、必要測試、一般錯誤修正、commit、push，並建立或更新唯一一個指向 ${repository.baseBranch} 的 PR。PR 標題與說明使用繁體中文，關聯 Issue #${issue.number}，列出修改範圍、實際測試與限制。授權不包含 merge，絕對不得 merge。不得輸出 secret、token、password、OAuth secret 或 service role key，不得使用 OpenAI API key、付費 API、新 VPS、付費 queue 或新增付費 SaaS。
 
 只有 OAuth/登入、權限不足、真正規格衝突、破壞性或不可逆操作、Secret 缺失、可能新增費用、或無法安全決定的產品選項，才可回報 human_gate。普通程式錯誤要自行診斷、修正並重測。verification.passed 只能在列出的必要檢查實際通過時為 true。最終輸出必須符合指定 JSON schema。`;
 }

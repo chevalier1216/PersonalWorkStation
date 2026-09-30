@@ -1,6 +1,6 @@
 # GitHub Issue → Codex Worker
 
-版本：`ver.26.09.30.2`
+版本：`ver.26.09.30.3`
 狀態：功能 branch 實作；真實 GitHub E2E 與排程啟用狀態以本文件「驗證紀錄」為準。
 
 ## 用途與邊界
@@ -33,6 +33,7 @@ Worker 只會選擇 Open、具有 `codex:ready`，且沒有其餘三個狀態 la
 - 程式白名單目前只允許 `chevalier1216/PersonalWorkStation`，本機路徑由安裝時設定，Issue 不能指定 filesystem path。
 - 所有 `gh`、`git`、`codex` 呼叫使用 argument array 且 `shell: false`；Issue 文字只經 stdin 進入 Codex prompt，不會直接執行。
 - Prompt 以 `<untrusted_issue_body>` 隔離 Issue，並先要求讀取 `AGENTS.md`、PRD index 與 execution rules。
+- 可信 Worker prompt 明確承接使用者對 label／留言、branch、commit、push 與建立或更新唯一 PR 的既有授權；Codex 不會為這些流程內動作重複要求 Human Gate。merge 始終不在授權範圍。
 - 每個 repository 使用獨占 lock；排程重入會直接跳過。stale lock 會保留副本並依 `run.json`、Issue、branch、PR 狀態恢復。
 - 同一 Issue branch 固定為 `codex/issue-<number>-<slug>`；偵測到既有 PR 時會更新／驗證既有工作，不建立第二個 PR。
 - 普通工程錯誤最多執行兩次有界修復；登入、權限、OAuth、Secret、費用、破壞性操作或真正規格衝突改為 `codex:blocked`。

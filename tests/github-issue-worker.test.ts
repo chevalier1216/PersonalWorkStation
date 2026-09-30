@@ -113,6 +113,8 @@ describe("GitHub Issue Codex Worker", () => {
     );
     expect(prompt).toContain("AGENTS.md");
     expect(prompt).toContain("不得 merge");
+    expect(prompt).toContain("這些已授權動作不得再次要求 Human Gate");
+    expect(prompt).toContain("授權不包含 merge");
     expect(prompt).toContain(
       "不使用 OpenAI API key".replace("不使用", "不得使用"),
     );
