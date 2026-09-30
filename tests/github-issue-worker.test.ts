@@ -12,6 +12,7 @@ import {
   issueBranch,
   isReadyIssue,
   releaseLease,
+  recoveryDisposition,
   sanitizeForLog,
   selectReadyIssue,
   validateWorkerConfig,
@@ -167,6 +168,21 @@ describe("GitHub Issue Codex Worker", () => {
       }),
     ).not.toThrow();
     expect(blockedComment("請恢復 gh 認證")).toContain("codex:blocked");
+  });
+
+  it("recovery 會重新 claim ready，直接續跑 running，忽略 blocked 或 done", () => {
+    expect(recoveryDisposition(issue(1, [CODEX_LABELS.ready]))).toBe(
+      "reclaim",
+    );
+    expect(recoveryDisposition(issue(2, [CODEX_LABELS.running]))).toBe(
+      "resume",
+    );
+    expect(
+      recoveryDisposition(
+        issue(3, [CODEX_LABELS.ready, CODEX_LABELS.blocked]),
+      ),
+    ).toBe("ignore");
+    expect(recoveryDisposition(issue(4, [CODEX_LABELS.done]))).toBe("ignore");
   });
 
   it("排程使用 LocalAppData runtime，不依賴會切換 branch 的 repository scripts", async () => {

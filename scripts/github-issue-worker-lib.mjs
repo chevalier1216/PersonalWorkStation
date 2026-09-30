@@ -53,6 +53,16 @@ export function selectReadyIssue(issues) {
     .sort((left, right) => Number(left.number) - Number(right.number))[0];
 }
 
+export function recoveryDisposition(issue) {
+  const labels = labelNames(issue);
+  if (issue?.state === "CLOSED" || labels.has(CODEX_LABELS.done)) {
+    return "ignore";
+  }
+  if (labels.has(CODEX_LABELS.running)) return "resume";
+  if (isReadyIssue(issue)) return "reclaim";
+  return "ignore";
+}
+
 export function slugify(value, maxLength = 42) {
   const slug = String(value || "task")
     .normalize("NFKD")

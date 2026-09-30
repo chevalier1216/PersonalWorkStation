@@ -1,6 +1,6 @@
 # GitHub Issue → Codex Worker
 
-版本：`ver.26.09.30.3`
+版本：`ver.26.09.30.4`
 狀態：功能 branch 實作；真實 GitHub E2E 與排程啟用狀態以本文件「驗證紀錄」為準。
 
 ## 用途與邊界
@@ -97,7 +97,7 @@ Get-Content "$env:LOCALAPPDATA\PersonalWorkStation\codex-issue-worker\logs\worke
 ## Recovery
 
 - Remote 關機：尚未 claim 的 Issue 保留 `codex:ready`；開機／登入後再掃描。
-- Worker crash：下一輪讀取 stale lock、`run.json`、Issue 與既有 PR，延續相同 branch。
+- Worker crash：下一輪讀取 stale lock、`run.json`、Issue 與既有 PR，延續相同 branch；若是 Human Gate 後重新加入 `codex:ready`，會先重新 claim 為 `codex:running` 再續跑。
 - 已有 PR：恢復該 PR，禁止建立重複 branch／PR。
 - GitHub／Codex authentication failure：移除 `codex:running`、加入 `codex:blocked`，Issue 只留言最小人工動作。
 - 若 GitHub 已完全無法寫入，Worker 無法安全更新 Issue，會先開啟本機 authentication circuit；恢復既有認證並通過 `--doctor` 後再續跑原狀態。

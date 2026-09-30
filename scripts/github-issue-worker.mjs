@@ -15,6 +15,7 @@ import {
   labelNames,
   loadRunState,
   releaseLease,
+  recoveryDisposition,
   repoStateKey,
   resultComment,
   sanitizeForLog,
@@ -424,17 +425,14 @@ async function claimIssue(repository, issue, branch, workerName) {
 async function recoverIssue(repository, currentState) {
   if (!currentState?.issueNumber || currentState.status === "done") return null;
   const issue = await viewIssue(repository, currentState.issueNumber);
-  const labels = labelNames(issue);
-  if (issue.state === "CLOSED" || labels.has(CODEX_LABELS.done)) return null;
-  if (
-    labels.has(CODEX_LABELS.running) ||
-    (labels.has(CODEX_LABELS.ready) && !labels.has(CODEX_LABELS.blocked))
-  ) {
+  const disposition = recoveryDisposition(issue);
+  if (disposition !== "ignore") {
     const branch = currentState.branch || issueBranch(issue);
     return {
       issue,
       branch,
       recovery: true,
+      requiresClaim: disposition === "reclaim",
       pullRequest: await findPullRequest(repository, branch),
     };
   }
@@ -506,6 +504,16 @@ async function processRepository(config, repository, stateRoot) {
       );
       if (!claim) return { status: "lost-claim" };
       work = { ...claim, branch };
+    }
+    if (work?.requiresClaim) {
+      const claim = await claimIssue(
+        repository,
+        work.issue,
+        work.branch,
+        config.workerName,
+      );
+      if (!claim) return { status: "lost-claim" };
+      work = { ...claim, branch: work.branch, recovery: true };
     }
     const { issue, branch } = work;
     await saveRunState(statePath, {

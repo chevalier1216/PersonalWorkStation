@@ -18,6 +18,9 @@ export function isReadyIssue(issue: WorkerIssue): boolean;
 export function selectReadyIssue(
   issues: WorkerIssue[],
 ): WorkerIssue | undefined;
+export function recoveryDisposition(
+  issue: WorkerIssue,
+): "ignore" | "resume" | "reclaim";
 export function slugify(value: unknown, maxLength?: number): string;
 export function issueBranch(issue: WorkerIssue): string;
 export function repoStateKey(nameWithOwner: string): string;
