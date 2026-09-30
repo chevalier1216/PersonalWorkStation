@@ -1,0 +1,80 @@
+[CmdletBinding(SupportsShouldProcess = $true)]
+param(
+    [string]$RepositoryRoot = (Split-Path $PSScriptRoot -Parent),
+    [string]$TaskName = 'PersonalWorkStation Codex Issue Worker',
+    [string]$WorkerName = "$env:COMPUTERNAME-personal-workstation",
+    [string]$BaseBranch = 'feat/v1-specs-m1',
+    [ValidateRange(5, 60)]
+    [int]$IntervalMinutes = 5,
+    [switch]$SkipGitHubSetup
+)
+
+$ErrorActionPreference = 'Stop'
+$root = (Resolve-Path -LiteralPath $RepositoryRoot).Path
+foreach ($command in 'node', 'git', 'gh', 'codex') {
+    Get-Command $command -ErrorAction Stop | Out-Null
+}
+foreach ($required in 'AGENTS.md', 'docs\product\00_PRD_INDEX.md', 'docs\product\08-EXECUTION-RULES.md') {
+    if (-not (Test-Path -LiteralPath (Join-Path $root $required))) {
+        throw "Repository 缺少必要檔案：$required"
+    }
+}
+
+$stateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'PersonalWorkStation\codex-issue-worker'
+$configPath = Join-Path $stateRoot 'config.json'
+$config = [ordered]@{
+    workerName = $WorkerName
+    maxAttempts = 2
+    staleAfterMinutes = 180
+    stateRoot = $stateRoot
+    repositories = @(
+        [ordered]@{
+            nameWithOwner = 'chevalier1216/PersonalWorkStation'
+            repositoryRoot = $root
+            baseBranch = $BaseBranch
+        }
+    )
+}
+
+if (-not $PSCmdlet.ShouldProcess($configPath, '寫入 Codex Issue Worker 本機設定')) {
+    return
+}
+New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
+$config | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $configPath -Encoding utf8
+
+$node = (Get-Command node -ErrorAction Stop).Source
+$worker = Join-Path $root 'scripts\github-issue-worker.mjs'
+if (-not $SkipGitHubSetup) {
+    & $node $worker --config $configPath --setup
+    if ($LASTEXITCODE -ne 0) {
+        throw 'GitHub label setup 失敗；Scheduled Task 尚未建立。'
+    }
+}
+
+$runner = Join-Path $root 'scripts\Run-CodexIssueWorker.ps1'
+$powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
+$arguments = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$runner`" -ConfigPath `"$configPath`""
+$action = New-ScheduledTaskAction -Execute $powershell -Argument $arguments -WorkingDirectory $root
+$logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+$repeatTrigger = New-ScheduledTaskTrigger `
+    -Once `
+    -At (Get-Date).AddMinutes(1) `
+    -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) `
+    -RepetitionDuration (New-TimeSpan -Days 3650)
+$settings = New-ScheduledTaskSettingsSet `
+    -MultipleInstances IgnoreNew `
+    -StartWhenAvailable `
+    -ExecutionTimeLimit (New-TimeSpan -Hours 6)
+
+Register-ScheduledTask `
+    -TaskName $TaskName `
+    -Action $action `
+    -Trigger @($logonTrigger, $repeatTrigger) `
+    -Settings $settings `
+    -Description '每五分鐘將 codex:ready GitHub Issue 交付本機 Codex CLI；同一 repository 一次只執行一件。' `
+    -User "$env:USERDOMAIN\$env:USERNAME" `
+    -Force | Out-Null
+
+Write-Output "Installed task: $TaskName"
+Write-Output "Config: $configPath"
+Write-Output "Repository: $root"

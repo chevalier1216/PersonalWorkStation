@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "verification",
+    "artifacts",
+    "human_gate",
+    "commit_sha"
+  ],
+  "properties": {
+    "summary": { "type": "string", "minLength": 1 },
+    "commit_sha": { "type": "string" },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "checks"],
+      "properties": {
+        "passed": { "type": "boolean" },
+        "checks": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "label", "url"],
+        "properties": {
+          "kind": { "type": "string" },
+          "label": { "type": "string" },
+          "url": { "type": "string" }
+        }
+      }
+    },
+    "human_gate": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reason", "prompt"],
+          "properties": {
+            "reason": { "type": "string", "minLength": 1 },
+            "prompt": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    }
+  }
+}
