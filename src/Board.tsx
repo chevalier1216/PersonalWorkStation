@@ -26,6 +26,8 @@ import {
   type Kind,
   type Priority,
   type GoogleCalendarEvent,
+  type StandaloneCalendarEventInput,
+  type StandaloneCalendarEventResult,
 } from "./domain";
 import { TaskDetails } from "./TaskDetails";
 import { Today } from "./Today";
@@ -58,6 +60,9 @@ export type CalendarOperations = {
   connect: () => Promise<void>;
   sync: (snapshot: Snapshot) => Promise<Snapshot>;
   create: (task: Task, calendarId: string) => Promise<Snapshot>;
+  createStandalone: (
+    input: StandaloneCalendarEventInput,
+  ) => Promise<StandaloneCalendarEventResult>;
 };
 
 export function doneTaskGroups(tasks: Task[], now = new Date()) {
@@ -351,6 +356,8 @@ export function Board({
   }
   const siteRun = useRef(run);
   siteRun.current = run;
+  const siteCalendarCreate = useRef(runStandaloneCalendarEvent);
+  siteCalendarCreate.current = runStandaloneCalendarEvent;
   useEffect(() => {
     if (!loaded) return;
     const context = (document as Document & { modelContext?: SiteModelContext })
@@ -360,8 +367,39 @@ export function Board({
       context,
       () => latestData.current,
       (action, payload) => siteRun.current(action, payload),
+      (input) => siteCalendarCreate.current(input),
     );
   }, [loaded]);
+  async function runStandaloneCalendarEvent(
+    input: StandaloneCalendarEventInput,
+  ): Promise<StandaloneCalendarEventResult> {
+    if (!calendar) throw new Error("目前頁面未提供 Calendar 寫入能力");
+    if (lock.current) throw new Error("另一項工作台操作仍在執行，請稍後重試");
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const created = await calendar.createStandalone(input);
+      latestData.current = created.snapshot;
+      setData(created.snapshot);
+      setLoaded(true);
+      setNotice(
+        created.deduplicated
+          ? "已確認既有 Calendar 行程，未重複建立"
+          : "Calendar 行程已建立",
+      );
+      return created;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Google Calendar 操作失敗";
+      setError(message);
+      throw new Error(message);
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
   async function runCalendar(operation: () => Promise<Snapshot>) {
     if (lock.current) return false;
     lock.current = true;
@@ -1328,4 +1366,3 @@ function ColumnEditor({
     </Modal>
   );
 }
-

@@ -1,10 +1,23 @@
-import { taskInput, type Snapshot } from "./domain";
+import {
+  standaloneCalendarEventInput,
+  taskInput,
+  type Snapshot,
+  type StandaloneCalendarEventInput,
+  type StandaloneCalendarEventResult,
+} from "./domain";
 
 type ToolResult = { content: Array<{ type: "text"; text: string }> };
 type SiteTool = {
   name: string;
+  title?: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations?: {
+    readOnlyHint?: boolean;
+    untrustedContentHint?: boolean;
+    consequentialHint?: boolean;
+    debugging?: boolean;
+  };
   execute: (input: Record<string, unknown>) => Promise<ToolResult>;
 };
 export type SiteModelContext = {
@@ -22,9 +35,77 @@ export function registerWorkspaceSiteTools(
   context: SiteModelContext,
   snapshot: () => Snapshot,
   run: (action: string, payload?: Record<string, unknown>) => Promise<boolean>,
+  createCalendarEvent?: (
+    input: StandaloneCalendarEventInput,
+  ) => Promise<StandaloneCalendarEventResult>,
 ) {
   const controller = new AbortController();
   const tools: SiteTool[] = [
+    {
+      name: "calendar_create_event",
+      title: "建立 Google Calendar 行程",
+      description:
+        "在目前登入者已授權的主要 Google Calendar 建立獨立行程。這項工具只建立 Calendar event，不建立 Task 或 Run。start_at 與 end_at 必須是包含 UTC offset 的 RFC 3339 日期時間；end_at 未提供時預設 30 分鐘。",
+      inputSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string", minLength: 1, maxLength: 300 },
+          start_at: {
+            type: "string",
+            format: "date-time",
+            description: "包含 UTC offset 的 RFC 3339 開始時間",
+          },
+          end_at: {
+            type: "string",
+            format: "date-time",
+            description:
+              "包含 UTC offset 的 RFC 3339 結束時間；省略時為開始後 30 分鐘",
+          },
+          timezone: {
+            type: "string",
+            default: "Asia/Taipei",
+            description: "IANA 時區名稱；未提供時使用 Asia/Taipei",
+          },
+          description: { type: "string", maxLength: 20000 },
+        },
+        required: ["title", "start_at"],
+        additionalProperties: false,
+      },
+      annotations: {
+        readOnlyHint: false,
+        untrustedContentHint: false,
+        consequentialHint: true,
+      },
+      async execute(input) {
+        const parsed = standaloneCalendarEventInput.safeParse(input);
+        if (!parsed.success)
+          return result(`未建立行程：${parsed.error.issues[0].message}`);
+        if (!createCalendarEvent)
+          return result("未建立行程：目前頁面未提供 Calendar 寫入能力。");
+        try {
+          const created = await createCalendarEvent(parsed.data);
+          return result(
+            JSON.stringify({
+              status: created.status,
+              event_id: created.event_id,
+              title: created.title,
+              start_at: created.start_at,
+              end_at: created.end_at,
+              timezone: created.timezone,
+              html_link: created.html_link,
+              deduplicated: created.deduplicated,
+              message: created.deduplicated
+                ? "相同工具呼叫已存在，未建立重複行程。"
+                : "Google Calendar 行程已建立並更新工作台快取。",
+            }),
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          return result(`未建立行程：${message}`);
+        }
+      },
+    },
     {
       name: "personal_workstation_list_tasks",
       description:
@@ -134,4 +215,3 @@ export function registerWorkspaceSiteTools(
   }
   return () => controller.abort();
 }
-

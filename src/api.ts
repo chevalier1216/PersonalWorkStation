@@ -1,5 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
-import type { GoogleCalendarEvent, Snapshot, Task } from "./domain";
+import type {
+  GoogleCalendarEvent,
+  Snapshot,
+  StandaloneCalendarEventInput,
+  StandaloneCalendarEventResult,
+  Task,
+} from "./domain";
 import { emptyGoogleCalendarSync } from "./domain";
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -172,82 +178,77 @@ export async function listGoogleEvents(
     .map((event) => normalizeGoogleEvent(calendarId, event));
 }
 
-export async function syncGoogleCalendar(
-  token: string,
-  current: Snapshot,
-): Promise<Snapshot> {
-  try {
-    const list = await googleJson<{ items?: GoogleCalendarListItem[] }>(
-      token,
-      "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250",
-    );
-    const prior = new Map(
-      current.google_calendars.map((item) => [item.calendar_id, item.selected]),
-    );
-    const hasPrior = current.google_calendars.length > 0;
-    const calendars = (list.items ?? []).map((item) => ({
-      id: item.id,
-      summary: item.summary ?? "未命名 Calendar",
-      color: item.backgroundColor ?? "#7895b2",
-      time_zone: item.timeZone ?? "",
-      is_primary: Boolean(item.primary),
-      selected: prior.get(item.id) ?? (!hasPrior && Boolean(item.primary)),
-    }));
-    const selected = calendars.filter((item) => item.selected);
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = calendarSyncEnd(start);
-    const eventGroups = await Promise.all(
-      selected.map((calendar) =>
-        listGoogleEvents(token, calendar.id, start, end),
-      ),
-    );
-    return command("calendar_sync_success", {
-      calendars,
-      events: eventGroups.flat(),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return command("calendar_sync_failure", { message });
+type CalendarCredentialStatus = {
+  available: boolean;
+  needs_reconnect: boolean;
+  last_error: string;
+};
+
+async function calendarEdgeRequest<T>(
+  action: string,
+  payload: Record<string, unknown> = {},
+): Promise<T> {
+  if (!supabase) throw new Error("尚未設定資料連線");
+  const { data, error } = await supabase.functions.invoke("google-calendar", {
+    body: { action, ...payload },
+  });
+  if (error) {
+    let message = error.message;
+    const context = (error as unknown as { context?: Response }).context;
+    if (context instanceof Response) {
+      try {
+        const body = (await context.clone().json()) as { error?: string };
+        if (body.error) message = body.error;
+      } catch {
+        // Keep the Supabase Functions error when the response is not JSON.
+      }
+    }
+    throw new Error(message);
   }
+  return data as T;
+}
+
+export function getGoogleCalendarCredentialStatus() {
+  return calendarEdgeRequest<CalendarCredentialStatus>("status");
+}
+
+export function storeGoogleCalendarCredentials(
+  accessToken?: string | null,
+  refreshToken?: string | null,
+) {
+  return calendarEdgeRequest<CalendarCredentialStatus>("store_credentials", {
+    google_access_token: accessToken ?? "",
+    google_refresh_token: refreshToken ?? "",
+  });
+}
+
+export async function syncGoogleCalendar(): Promise<Snapshot> {
+  const data = await calendarEdgeRequest<{ snapshot: Partial<Snapshot> }>(
+    "sync",
+  );
+  return normalizeSnapshot(data.snapshot);
 }
 
 export async function createTaskCalendarEvent(
-  token: string,
   task: Task,
   calendarId: string,
 ): Promise<Snapshot> {
-  try {
-    const query = new URLSearchParams({
-      privateExtendedProperty: `personalWorkStationTaskId=${task.id}`,
-      maxResults: "1",
-      singleEvents: "true",
-    });
-    const existing = await googleJson<{ items?: GoogleEvent[] }>(
-      token,
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${query}`,
-    );
-    const event =
-      existing.items?.[0] ??
-      (await googleJson<GoogleEvent>(
-        token,
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-        { method: "POST", body: JSON.stringify(taskEventBody(task)) },
-      ));
-    return command("calendar_link_success", {
-      task_id: task.id,
-      calendar_id: calendarId,
-      event_id: event.id,
-      html_link: event.htmlLink ?? "",
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return command("calendar_link_failure", {
-      task_id: task.id,
-      calendar_id: calendarId,
-      message,
-    });
-  }
+  const data = await calendarEdgeRequest<{ snapshot: Partial<Snapshot> }>(
+    "create_task_event",
+    { task, calendar_id: calendarId },
+  );
+  return normalizeSnapshot(data.snapshot);
+}
+
+export async function createStandaloneCalendarEvent(
+  input: StandaloneCalendarEventInput,
+): Promise<StandaloneCalendarEventResult> {
+  const data = await calendarEdgeRequest<
+    Omit<StandaloneCalendarEventResult, "snapshot"> & {
+      snapshot: Partial<Snapshot>;
+    }
+  >("create_event", input);
+  return { ...data, snapshot: normalizeSnapshot(data.snapshot) };
 }
 export async function command(
   action: string,
@@ -261,4 +262,3 @@ export async function command(
   if (error) throw new Error(error.message);
   return normalizeSnapshot(data as Partial<Snapshot>);
 }
-

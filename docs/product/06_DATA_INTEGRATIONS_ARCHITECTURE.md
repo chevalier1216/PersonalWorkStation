@@ -64,6 +64,16 @@ Workflow Node 可關聯：
 
 未來保留飛書登入擴充可能。
 
+### Calendar OAuth 與 Site Tools 資料流
+
+- Supabase Session 的 `persistSession`／`autoRefreshToken` 只維持工作台登入，不視為 Google provider token 已續期。
+- 初次連結或明確重新連結以 `access_type=offline` 及 `prompt=consent` 取得 Google refresh token；有效 Session 恢復時先使用伺服器端既有憑證，不在每次開站強制同意。
+- Browser 在 OAuth callback 取得 provider token 後，只送至 authenticated `google-calendar` Edge Function。Refresh Token 與 Access Token 以 `GOOGLE_TOKEN_ENCRYPTION_KEY` 做 AES-GCM 加密，僅由 service-role RPC 寫入 `private` schema；前端、URL、模型上下文、Git 與公開資料表均不保存明文。
+- Edge Function 以目前 Supabase user 及 `allowed_users` 綁定憑證。Google Access Token 到期時最多續期一次；`invalid_grant` 與重新取得 Access Token 後仍為 401 才標記需重新連結，不進入 OAuth 迴圈。
+- `calendar_create_event` 由 Edge Function 寫入 Google Calendar，使用 canonical request fingerprint、private request state 與 Google private extended property 防止重試重複。成功後才更新 `google_calendar_events` 與 `google_calendar_sync_state`。
+- Supabase Edge secrets 必須包含 `GOOGLE_TOKEN_ENCRYPTION_KEY`、`GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECRET`。這些值不得交給 ChatGPT 或寫入 repository。
+- Google OAuth 若為 External + Testing，refresh token 的七日期限及切換 In production／敏感 scope 驗證屬 Google Console 人工設定；不得由程式自行變更或承諾永久免授權。
+
 ## 6. Secret / Security
 
 若前端部署在 GitHub Pages：
