@@ -19,6 +19,14 @@
 - 產品規格一律由 `docs/product/00_PRD_INDEX.md` 進入，並以其列出的模組化 PRD 為 authoritative spec。
 - `docs/product/08-EXECUTION-RULES.md` 是 repository 執行政策，不覆寫產品 PRD。
 
+## 人類可讀語言與交付表述
+
+- 所有對人可讀的修正說明預設使用繁體中文。
+- GitHub Issue、PR 的標題與內文、PR／Issue 留言、修正摘要、驗證結果與交付說明，均應以繁體中文撰寫。
+- 程式碼符號、命令、檔名、路徑、API／套件／產品官方名稱、精確錯誤訊息與引用的外部原文，可保留英文或其他語言原文；整體敘述、意義與解釋仍以繁體中文為主。
+- 不得因 Codex、Agent、GitHub 或其他工具的預設語言，回退成全英文說明。
+- 本規則從後續新建或更新的內容開始適用；既有 Issue／PR 若已使用英文，不需僅為符合本規則追溯改寫。
+
 ## Repository 預設完成流程
 
 Repo 修改完成後，除非使用者明確要求暫停，必須連續完成：
