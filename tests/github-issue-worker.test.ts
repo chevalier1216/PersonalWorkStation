@@ -190,6 +190,10 @@ describe("GitHub Issue Codex Worker", () => {
       resolve("scripts/Install-CodexIssueWorkerTask.ps1"),
       "utf8",
     );
+    const launcher = await readFile(
+      resolve("scripts/Run-CodexIssueWorkerHidden.vbs"),
+      "utf8",
+    );
     expect(installer).toContain("$runtimeRoot = Join-Path $stateRoot 'runtime'");
     expect(installer).toContain(
       "$runner = Join-Path $runtimeRoot 'Run-CodexIssueWorker.ps1'",
@@ -201,8 +205,34 @@ describe("GitHub Issue Codex Worker", () => {
     expect(installer).toContain("$existingTask.State -eq 'Running'");
     expect(installer).toContain("避免覆寫使用中的 runtime");
     expect(installer).toContain("Get-Command codex.exe");
-    expect(installer).toContain("-ToolPathPrefix");
-    expect(installer).toContain("-WindowStyle Hidden");
+    expect(installer).toContain("'Run-CodexIssueWorkerHidden.vbs'");
+    expect(installer).toContain("Get-Command wscript.exe");
+    expect(installer).toContain(
+      "New-ScheduledTaskAction -Execute $wscript -Argument $arguments -WorkingDirectory $root",
+    );
+    expect(installer).not.toContain(
+      "New-ScheduledTaskAction -Execute $powershell",
+    );
+    expect(installer).toContain(
+      '//B //NoLogo `"$launcher`" `"$powershell`" `"$runner`" `"$configPath`" `"$toolPathPrefix`"',
+    );
+    expect(launcher).toContain('CreateObject("WScript.Shell")');
+    expect(launcher).toContain("shell.Run(command, 0, True)");
+    expect(launcher).toContain("-NoLogo -NoProfile -NonInteractive");
+    expect(launcher).toContain("-ExecutionPolicy Bypass");
+    expect(launcher).toContain('" -File "');
+    expect(launcher).toContain('" -ConfigPath "');
+    expect(launcher).toContain('" -ToolPathPrefix "');
     expect(installer).toContain("-Hidden `");
+    expect(installer).toContain("-AtLogOn");
+    expect(installer).toContain("-RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes)");
+    expect(installer).toContain("-MultipleInstances IgnoreNew");
+    expect(installer).toContain("-StartWhenAvailable");
+    expect(installer).toContain("-ExecutionTimeLimit (New-TimeSpan -Hours 6)");
+    const worker = await readFile(
+      resolve("scripts/github-issue-worker.mjs"),
+      "utf8",
+    );
+    expect(worker).toContain("windowsHide: true");
   });
 });
