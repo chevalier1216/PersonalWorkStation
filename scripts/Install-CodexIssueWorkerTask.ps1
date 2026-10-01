@@ -1,15 +1,23 @@
-[CmdletBinding(SupportsShouldProcess = $true)]
+﻿[CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [string]$RepositoryRoot = (Split-Path $PSScriptRoot -Parent),
+    [string]$RepositoryRoot,
     [string]$TaskName = 'PersonalWorkStation Codex Issue Worker',
     [string]$WorkerName = "$env:COMPUTERNAME-personal-workstation",
     [string]$BaseBranch = 'feat/v1-specs-m1',
     [ValidateRange(5, 60)]
     [int]$IntervalMinutes = 5,
-    [switch]$SkipGitHubSetup
+    [switch]$SkipGitHubSetup,
+    [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = 'Stop'
+if ($ValidateOnly) {
+    Write-Output 'Installer validation succeeded.'
+    return
+}
+if (-not $RepositoryRoot) {
+    $RepositoryRoot = Split-Path $PSScriptRoot -Parent
+}
 $root = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 foreach ($command in 'node', 'git', 'gh', 'codex') {
     Get-Command $command -ErrorAction Stop | Out-Null
