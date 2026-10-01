@@ -212,7 +212,8 @@ describe("GitHub Issue Codex Worker", () => {
     expect(installer).toContain("Copy-Item -LiteralPath $source");
     expect(installer).toContain("$existingTask.State -eq 'Running'");
     expect(installer).toContain("避免覆寫使用中的 runtime");
-    expect(installer).toContain("Get-Command codex.exe");
+    expect(installer).toContain("Get-Command codex.exe -CommandType Application -ErrorAction SilentlyContinue");
+    expect(installer).toContain("Get-Command codex -CommandType Application, ExternalScript -ErrorAction Stop");
     expect(installer).toContain("'Run-CodexIssueWorkerHidden.vbs'");
     expect(installer).toContain("Get-Command wscript.exe");
     expect(installer).toContain(
