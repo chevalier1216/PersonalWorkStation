@@ -639,4 +639,28 @@ describe("snapshot compatibility", () => {
     expect(groups.previous.map((item) => item.id)).toEqual(["previous"]);
     expect(groups.archived.map((item) => item.id)).toEqual(["archive"]);
   });
+  it("takes effect immediately when an approved user is revoked", async () => {
+    const revoked = await database();
+    try {
+      await revoked.db.query("insert into public.allowed_users values($1)", [
+        bob,
+      ]);
+      await revoked.run("load", {}, bob);
+      await revoked.db.query(
+        "delete from public.allowed_users where user_id=$1",
+        [bob],
+      );
+      await expect(revoked.run("load", {}, bob)).rejects.toThrow(/尚未獲准/);
+      await revoked.db.transaction(async (tx) => {
+        await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [
+          bob,
+        ]);
+        await tx.exec("set local role authenticated");
+        const result = await tx.query("select * from public.tasks");
+        expect(result.rows).toEqual([]);
+      });
+    } finally {
+      await revoked.db.close();
+    }
+  });
 });

@@ -29,6 +29,10 @@ V1 必須實際證明：
 - 使用者不需要在 Chat / Work / Codex 間人工搬運固定 Prompt
 - 本機 bridge 可將 Waiting External Run 交付既有 Codex CLI，並回寫 Node、Log、Verification、Artifact 或 Human Gate
 - Today 可顯示玉山官方 USD、RMB/CNY、JPY、EUR、AUD 的即期與現金買入／賣出，失敗時保留最後成功資料
+- 未登入訪客可使用明確標示的 Guest Preview，且瀏覽、修改、重新整理展示資料時不產生私人 Supabase／Storage／Edge Function 流量
+- 未核准 Google 帳號不得載入工作資料；核准帳號 A 無法讀寫核准帳號 B 的資料
+- 移除 `allowed_users` 後，該帳號既有 session 的下一次私人資料操作被拒絕
+- Calendar／Drive 的 Google Token 來自各自登入 session，不共用管理員 Token
 - ChatGPT 桌面版內建瀏覽器可探索並經原生確認呼叫 `calendar_create_event`，在目前登入者 Google Calendar 建立獨立 event，且不建立 Task／Run
 - Calendar Site Tool 回傳真實 event ID，工作台同步與重新整理仍可見；相同呼叫重試不重複建立
 - 未登入、未列入 `allowed_users`、Google 授權失效者均不能透過 Site Tool 寫入；Guest Preview 若存在也不得完成私人寫入
