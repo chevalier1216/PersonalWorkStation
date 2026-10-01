@@ -53,6 +53,7 @@ $config | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $configPath -Encodi
 # worker can safely switch that checkout to codex/issue-* branches.
 New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
 foreach ($runtimeFile in @(
+    'Run-CodexIssueWorkerHidden.vbs',
     'Run-CodexIssueWorker.ps1',
     'github-issue-worker.mjs',
     'github-issue-worker-lib.mjs',
@@ -82,9 +83,11 @@ if (-not $SkipGitHubSetup) {
 }
 
 $runner = Join-Path $runtimeRoot 'Run-CodexIssueWorker.ps1'
+$launcher = Join-Path $runtimeRoot 'Run-CodexIssueWorkerHidden.vbs'
 $powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
-$arguments = "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$runner`" -ConfigPath `"$configPath`" -ToolPathPrefix `"$toolPathPrefix`""
-$action = New-ScheduledTaskAction -Execute $powershell -Argument $arguments -WorkingDirectory $root
+$wscript = (Get-Command wscript.exe -ErrorAction Stop).Source
+$arguments = "//B //NoLogo `"$launcher`" `"$powershell`" `"$runner`" `"$configPath`" `"$toolPathPrefix`""
+$action = New-ScheduledTaskAction -Execute $wscript -Argument $arguments -WorkingDirectory $root
 $logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $repeatTrigger = New-ScheduledTaskTrigger `
     -Once `
