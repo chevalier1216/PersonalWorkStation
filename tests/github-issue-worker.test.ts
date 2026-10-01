@@ -186,6 +186,9 @@ describe("GitHub Issue Codex Worker", () => {
   });
 
   it("排程使用 LocalAppData runtime，不依賴會切換 branch 的 repository scripts", async () => {
+    const installerBytes = await readFile(
+      resolve("scripts/Install-CodexIssueWorkerTask.ps1"),
+    );
     const installer = await readFile(
       resolve("scripts/Install-CodexIssueWorkerTask.ps1"),
       "utf8",
@@ -194,6 +197,11 @@ describe("GitHub Issue Codex Worker", () => {
       resolve("scripts/Run-CodexIssueWorkerHidden.vbs"),
       "utf8",
     );
+    // Windows PowerShell 5.1 decodes a BOM-less script with the active ANSI
+    // code page. Keep the UTF-8 BOM because this installer contains CJK text.
+    expect([...installerBytes.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+    expect(installer).toContain("[switch]$ValidateOnly");
+    expect(installer).toContain("Installer validation succeeded.");
     expect(installer).toContain("$runtimeRoot = Join-Path $stateRoot 'runtime'");
     expect(installer).toContain(
       "$runner = Join-Path $runtimeRoot 'Run-CodexIssueWorker.ps1'",

@@ -5,6 +5,16 @@ on:
 permissions:
   contents: read
 jobs:
+  windows-powershell51:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse installer through Windows PowerShell 5.1 -File
+        shell: cmd
+        run: >-
+          powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass
+          -File scripts\Install-CodexIssueWorkerTask.ps1 -ValidateOnly
+
   verify:
     runs-on: ubuntu-latest
     steps:

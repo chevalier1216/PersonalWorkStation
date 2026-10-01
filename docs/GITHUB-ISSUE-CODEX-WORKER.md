@@ -55,7 +55,7 @@ Worker 只會選擇 Open、具有 `codex:ready`，且沒有其餘三個狀態 la
 在 repository root 執行：
 
 ```powershell
-pwsh -NoProfile -File .\scripts\Install-CodexIssueWorkerTask.ps1
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\scripts\Install-CodexIssueWorkerTask.ps1
 ```
 
 Scheduled Task action 使用 Windows 內建 `wscript.exe` 執行 runtime 內的 `Run-CodexIssueWorkerHidden.vbs`，再以 hidden window style 啟動既有 PowerShell runner。Task Scheduler 不再直接啟動 `powershell.exe`，因此不會先建立可見 console 再隱藏；launcher 仍會同步等待 runner，並把原 exit code 回傳給 Task Scheduler。
@@ -75,7 +75,8 @@ Scheduled Task action 使用 Windows 內建 `wscript.exe` 執行 runtime 內的 
 預檢但不註冊：
 
 ```powershell
-pwsh -NoProfile -File .\scripts\Install-CodexIssueWorkerTask.ps1 -WhatIf
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\scripts\Install-CodexIssueWorkerTask.ps1 -ValidateOnly
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\scripts\Install-CodexIssueWorkerTask.ps1 -WhatIf
 node .\scripts\github-issue-worker.mjs --config "$env:LOCALAPPDATA\PersonalWorkStation\codex-issue-worker\config.json" --doctor
 ```
 
