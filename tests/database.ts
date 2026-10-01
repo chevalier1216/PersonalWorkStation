@@ -127,6 +127,33 @@ export async function database() {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile(
+      new URL(
+        "../supabase/migrations/202609300001_calendar_site_tools.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    await readFile(
+      new URL(
+        "../supabase/migrations/202609300002_calendar_site_tools_acl.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    await readFile(
+      new URL(
+        "../supabase/migrations/202609300003_calendar_service_role_claims.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await db.query("insert into public.allowed_users values($1)", [alice]);
   async function run(
     action: string,

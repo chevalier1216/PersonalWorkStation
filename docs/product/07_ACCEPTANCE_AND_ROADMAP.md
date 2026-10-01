@@ -33,6 +33,10 @@ V1 必須實際證明：
 - 未核准 Google 帳號不得載入工作資料；核准帳號 A 無法讀寫核准帳號 B 的資料
 - 移除 `allowed_users` 後，該帳號既有 session 的下一次私人資料操作被拒絕
 - Calendar／Drive 的 Google Token 來自各自登入 session，不共用管理員 Token
+- ChatGPT 桌面版內建瀏覽器可探索並經原生確認呼叫 `calendar_create_event`，在目前登入者 Google Calendar 建立獨立 event，且不建立 Task／Run
+- Calendar Site Tool 回傳真實 event ID，工作台同步與重新整理仍可見；相同呼叫重試不重複建立
+- 未登入、未列入 `allowed_users`、Google 授權失效者均不能透過 Site Tool 寫入；Guest Preview 若存在也不得完成私人寫入
+- 同瀏覽器恢復 Supabase Session 與 Google Access Token 到期後可用 refresh token 靜默續期；`invalid_grant` 最多引導一次重新連結
 
 ## 2. V1 不做
 
@@ -47,6 +51,7 @@ V1 必須實際證明：
 ### 暫存項目（使用者於 2026-09-25 調整）
 
 - 工作台網頁內的 ChatGPT 對話入口暫不列入 V1 驗收，相關入口須停用。Windows 桌面版 ChatGPT 一般「對話」透過內建瀏覽器站點工具直接操作真實 Task，需依 `04_AI_CHAT.md` 完成指定帳號實機驗證才可列為通過；尚未實測前不得以功能程式或自動化測試代替驗收，不得改用 Work 額度或付費 API。
+- `calendar_create_event` 同樣須以指定正式帳號、實際支援 Site Tools 的 ChatGPT 桌面客戶端完成真實 Google event、重整、防重、拒絕案例及 token 過期續期證據；程式、本機測試或工具出現在地址列均不等於正式驗收。
 
 ## 3. 後續 Roadmap
 

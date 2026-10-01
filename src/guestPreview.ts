@@ -479,6 +479,9 @@ export function createGuestWorkspace(
     create: async () => {
       throw new Error("請先登入經核准的帳號，再連結個人的 Google Calendar。");
     },
+    createStandalone: async () => {
+      throw new Error("Guest Preview 不會連線個人的 Google Calendar。");
+    },
   };
 
   const summaries: SummaryOperations = {

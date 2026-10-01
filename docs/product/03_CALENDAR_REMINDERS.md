@@ -8,6 +8,10 @@
 
 重要 Task 必須可關聯 Calendar event。
 
+Windows 桌面版 ChatGPT 內建瀏覽器可透過 `calendar_create_event` 建立目前登入者主要 Google Calendar 的獨立事件。這條路徑不建立 Task 或 Run，也不以工作台快取代替 Google event。輸入至少包含標題與帶 UTC offset 的 RFC 3339 開始時間；結束時間預設為 30 分鐘後，時區預設 `Asia/Taipei`，說明為選填。
+
+相同使用者與相同事件內容的工具重試必須回傳既有 event，不得重複建立；成功後須更新工作台事件快取與同步狀態。日期格式、IANA 時區及結束時間晚於開始時間均須在寫入前驗證。
+
 ## 2. 提醒原則
 
 工作台內提醒，不使用桌面通知。
