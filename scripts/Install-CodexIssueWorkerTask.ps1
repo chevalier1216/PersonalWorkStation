@@ -77,7 +77,11 @@ foreach ($runtimeFile in @(
 $node = (Get-Command node.exe -ErrorAction Stop).Source
 $git = (Get-Command git.exe -ErrorAction Stop).Source
 $gh = (Get-Command gh.exe -ErrorAction Stop).Source
-$codex = (Get-Command codex.exe -ErrorAction Stop).Source
+$codexCommand = Get-Command codex.exe -CommandType Application -ErrorAction SilentlyContinue
+if (-not $codexCommand) {
+    $codexCommand = Get-Command codex -CommandType Application, ExternalScript -ErrorAction Stop
+}
+$codex = $codexCommand.Source
 $toolPathPrefix = @($node, $git, $gh, $codex) |
     ForEach-Object { Split-Path -Parent $_ } |
     Select-Object -Unique
